@@ -1,0 +1,5 @@
+# Hermes integration local files
+hermes-integration/.env.local
+
+# Keep the tool and config tracked, but don't overwrite user's Hermes install
+.hermes-installed

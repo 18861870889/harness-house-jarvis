@@ -1,0 +1,35 @@
+# Hermes Configuration Reference
+# 这是一份参考配置，实际配置通过 setup.sh 或 hermes config set 完成
+
+# === STT (语音转文字) ===
+stt:
+  enabled: true
+  provider: local          # 本地 faster-whisper，零延迟不联网
+  local:
+    model: base            # tiny/base/small/medium/large-v3，base 是延迟和精度的平衡点
+
+# === TTS (文字转语音) ===
+tts:
+  provider: edge           # edge-tts，免费，延迟 ~200ms 首音节
+
+# === Memory (长期记忆) ===
+memory:
+  memory_enabled: true     # 跨会话记忆，贾维斯需要
+  user_profile_enabled: true
+
+# === Agent ===
+agent:
+  max_turns: 30            # 语音对话不需要太多轮
+  tool_use_enforcement: strict  # 设备控制必须走 tool
+
+# === Voice ===
+# /voice on 在会话中开启语音模式
+# 语音模式下：麦克风 → STT → LLM → TTS → 音箱
+
+# === Tools ===
+# harness_command tool 自动发现（放在 ~/.hermes/tools/ 下即可）
+# 额外启用的 toolset:
+#   - homeassistant (harness_command 归属)
+#   - web (日常对话需要查知识)
+#   - memory (长期记忆)
+#   - session_search (回忆过去的对话)
