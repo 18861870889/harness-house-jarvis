@@ -33,6 +33,7 @@ import {
   normalizeHcmPlannerDraft,
 } from "./src/hcmPlanner.js";
 import { buildPromptContextPackV2, summarizePromptContextPack } from "./src/intentFrame.js";
+import { expandBatchActions } from "./src/batchExpander.js";
 import { explainIntentResult } from "./src/intentExplainer.js";
 import { applyIntentAccuracyGate, evaluateIntentAccuracy } from "./src/intentAccuracyEngine.js";
 import { reviewDecisionBeforeExecution } from "./src/decisionReview.js";
@@ -946,7 +947,21 @@ async function runHcmCommandPipeline(payload) {
             }),
           },
         );
-    const normalizedPlan = await runCommandStage(trace, "plan_normalize", async () => normalizeHcmPlannerDraft(payload.input, draft, home), {
+    // batch_expander: expand batch actions (e.g. "关主卧所有灯") into per-device actions.
+    // Pure local operation — queries Control Graph, no LLM. <1ms for typical homes.
+    const expandedDraft = await runCommandStage(
+      trace,
+      "batch_expander",
+      async () => expandBatchActions(draft, home, payload.input),
+      {
+        summarize: (d) => ({
+          batchExpanded: Boolean(d?._batch_expanded),
+          originalActions: d?._batch_original_count ?? draft.actions?.length ?? 0,
+          expandedActions: d?._batch_expanded_count ?? draft.actions?.length ?? 0,
+        }),
+      },
+    );
+    const normalizedPlan = await runCommandStage(trace, "plan_normalize", async () => normalizeHcmPlannerDraft(payload.input, expandedDraft, home), {
       summarize: (plan) => ({
         intent: plan.intent,
         intentType: plan.intentType,
