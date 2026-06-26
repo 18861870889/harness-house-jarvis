@@ -1,0 +1,263 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="2200" viewBox="0 0 2200 2200" role="img" aria-labelledby="title desc">
+  <title id="title">Harness House Mobile Architecture</title>
+  <desc id="desc">Mobile friendly vertical architecture diagram for Harness House.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7f8fa; }
+      .title { font: 700 38px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #1f2933; }
+      .subtitle { font: 500 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #52606d; }
+      .layer-title { font: 700 24px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #1f2933; }
+      .layer-note { font: 500 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #52606d; }
+      .box-title { font: 700 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #17212b; }
+      .box-note { font: 500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #46515d; }
+      .tiny { font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #52606d; }
+      .layer { stroke-width: 1.8; rx: 18; }
+      .box { stroke-width: 1.6; rx: 12; }
+      .entry { fill: #e8f1ff; stroke: #8ab4f8; }
+      .event { fill: #fef6e7; stroke: #f5b64c; }
+      .core { fill: #eaf7f0; stroke: #75c790; }
+      .agent { fill: #f1ecff; stroke: #a996f5; }
+      .policy { fill: #ffeceb; stroke: #ec8b82; }
+      .data { fill: #eef2f6; stroke: #a5b1be; }
+      .connector { fill: #e8fbfb; stroke: #68c7c7; }
+      .device { fill: #fff1df; stroke: #e2a75b; }
+      .tag { fill: #ffffff; stroke: #d5dbe3; rx: 10; }
+      .tag-text { font: 700 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #394452; }
+      .arrow { stroke: #52606d; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+      .arrow-soft { stroke: #7b8794; stroke-width: 2; fill: none; marker-end: url(#arrow-soft); stroke-dasharray: 7 6; }
+      .arrow-risk { stroke: #d64545; stroke-width: 2.6; fill: none; marker-end: url(#arrow-risk); }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#52606d"/>
+    </marker>
+    <marker id="arrow-soft" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#7b8794"/>
+    </marker>
+    <marker id="arrow-risk" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#d64545"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="2200" height="2200"/>
+
+  <text class="title" x="55" y="62">Harness House 架构图</text>
+  <text class="subtitle" x="55" y="96">移动端纵向版：Hermes 式交互，安全优先执行，连接器式开源框架</text>
+
+  <rect class="tag" x="55" y="122" width="235" height="34"/>
+  <text class="tag-text" x="74" y="144">Home Assistant-first</text>
+  <rect class="tag" x="310" y="122" width="245" height="34"/>
+  <text class="tag-text" x="329" y="144">not Home Assistant-only</text>
+
+  <!-- Interaction -->
+  <rect class="layer entry" x="45" y="185" width="1110" height="175"/>
+  <text class="layer-title" x="75" y="222">1. Interaction Layer / Hermes-style Entry</text>
+  <text class="layer-note" x="75" y="249">统一入口：收消息、回消息、展示计划，不直接控制设备</text>
+
+  <rect class="box entry" x="75" y="280" width="185" height="58"/>
+  <text class="box-title" x="128" y="304">WeChat</text>
+  <text class="box-note" x="145" y="323">Bot</text>
+  <rect class="box entry" x="285" y="280" width="185" height="58"/>
+  <text class="box-title" x="332" y="304">Telegram</text>
+  <text class="box-note" x="360" y="323">Bot</text>
+  <rect class="box entry" x="495" y="280" width="185" height="58"/>
+  <text class="box-title" x="565" y="304">Web</text>
+  <text class="box-note" x="555" y="323">Console</text>
+  <rect class="box entry" x="705" y="280" width="185" height="58"/>
+  <text class="box-title" x="775" y="304">Voice</text>
+  <text class="box-note" x="780" y="323">later</text>
+  <rect class="box entry" x="915" y="280" width="185" height="58"/>
+  <text class="box-title" x="988" y="304">API</text>
+  <text class="box-note" x="986" y="323">Open</text>
+
+  <!-- Events -->
+  <rect class="layer event" x="45" y="390" width="1110" height="175"/>
+  <text class="layer-title" x="75" y="427">2. Event Sources</text>
+  <text class="layer-note" x="75" y="454">用户指令、传感器、定时、设备状态变化进入同一事件流</text>
+
+  <rect class="box event" x="75" y="485" width="185" height="58"/>
+  <text class="box-title" x="148" y="509">User</text>
+  <text class="box-note" x="132" y="528">Commands</text>
+  <rect class="box event" x="285" y="485" width="185" height="58"/>
+  <text class="box-title" x="350" y="509">Sensor</text>
+  <text class="box-note" x="358" y="528">Events</text>
+  <rect class="box event" x="495" y="485" width="185" height="58"/>
+  <text class="box-title" x="563" y="509">Device</text>
+  <text class="box-note" x="558" y="528">Changes</text>
+  <rect class="box event" x="705" y="485" width="185" height="58"/>
+  <text class="box-title" x="775" y="509">Timer</text>
+  <text class="box-note" x="770" y="528">Schedule</text>
+  <rect class="box event" x="915" y="485" width="185" height="58"/>
+  <text class="box-title" x="978" y="509">Weather</text>
+  <text class="box-note" x="982" y="528">External</text>
+
+  <!-- Core -->
+  <rect class="layer core" x="45" y="595" width="1110" height="695"/>
+  <text class="layer-title" x="75" y="632">3. Harness House Core</text>
+  <text class="layer-note" x="75" y="659">事件路由、AI 规划、规则、策略、执行全部在这里隔离</text>
+
+  <rect class="box core" x="75" y="695" width="220" height="70"/>
+  <text class="box-title" x="146" y="724">Gateway</text>
+  <text class="box-note" x="128" y="746">message to event</text>
+  <rect class="box core" x="360" y="695" width="220" height="70"/>
+  <text class="box-title" x="422" y="724">Event Bus</text>
+  <text class="box-note" x="420" y="746">single stream</text>
+  <rect class="box core" x="645" y="695" width="220" height="70"/>
+  <text class="box-title" x="725" y="724">Router</text>
+  <text class="box-note" x="700" y="746">intent / event route</text>
+
+  <path class="arrow" d="M295 730 L360 730"/>
+  <path class="arrow" d="M580 730 L645 730"/>
+
+  <rect class="box core" x="75" y="825" width="240" height="85"/>
+  <text class="box-title" x="143" y="856">Rule Engine</text>
+  <text class="box-note" x="126" y="880">known deterministic</text>
+  <text class="box-note" x="178" y="899">flows</text>
+  <rect class="box core" x="360" y="825" width="240" height="85"/>
+  <text class="box-title" x="427" y="856">Scene Engine</text>
+  <text class="box-note" x="405" y="880">sleep / home / away</text>
+  <text class="box-note" x="462" y="899">movie</text>
+  <rect class="box agent" x="645" y="825" width="240" height="85"/>
+  <text class="box-title" x="715" y="856">AI Planner</text>
+  <text class="box-note" x="690" y="880">intent, disambiguation</text>
+  <text class="box-note" x="707" y="899">plan generation</text>
+
+  <path class="arrow" d="M755 765 L755 800 L195 800 L195 825"/>
+  <path class="arrow" d="M755 765 L755 800 L480 800 L480 825"/>
+  <path class="arrow" d="M755 765 L755 825"/>
+
+  <rect class="box data" x="915" y="695" width="200" height="215"/>
+  <text class="box-title" x="955" y="727">Context Graph</text>
+  <text class="box-note" x="947" y="760">rooms, presence</text>
+  <text class="box-note" x="947" y="785">device state</text>
+  <text class="box-note" x="947" y="810">capability model</text>
+  <text class="box-note" x="947" y="835">preferences</text>
+  <text class="box-note" x="947" y="860">risk context</text>
+
+  <path class="arrow-soft" d="M915 790 L885 865"/>
+  <path class="arrow-soft" d="M915 805 L600 865"/>
+  <path class="arrow-soft" d="M915 820 L315 865"/>
+
+  <rect class="box policy" x="190" y="985" width="260" height="80"/>
+  <text class="box-title" x="258" y="1016">Safety Guardian</text>
+  <text class="box-note" x="244" y="1040">risk, permission, confirm</text>
+  <rect class="box core" x="520" y="985" width="260" height="80"/>
+  <text class="box-title" x="600" y="1016">Plan Executor</text>
+  <text class="box-note" x="580" y="1040">queue, retry, snapshot</text>
+  <rect class="box agent" x="850" y="985" width="260" height="80"/>
+  <text class="box-title" x="920" y="1016">Evolution Engine</text>
+  <text class="box-note" x="888" y="1040">candidate memories/rules</text>
+
+  <path class="arrow" d="M195 910 L320 948 L320 985"/>
+  <path class="arrow" d="M480 910 L320 948 L320 985"/>
+  <path class="arrow" d="M765 910 L320 948 L320 985"/>
+  <path class="arrow-risk" d="M450 1025 L520 1025"/>
+  <path class="arrow" d="M780 1025 L850 1025"/>
+
+  <rect class="tag" x="95" y="1135" width="430" height="42"/>
+  <text class="tag-text" x="117" y="1162">LLM 只负责理解与规划，不直接触碰设备 API</text>
+  <rect class="tag" x="555" y="1135" width="500" height="42"/>
+  <text class="tag-text" x="580" y="1162">所有动作必须经过 Safety Guardian 和 Audit Log</text>
+  <rect class="tag" x="240" y="1195" width="670" height="42"/>
+  <text class="tag-text" x="263" y="1222">自进化先做候选偏好，用户确认后才固化为规则</text>
+
+  <!-- Data -->
+  <rect class="layer data" x="45" y="1320" width="1110" height="300"/>
+  <text class="layer-title" x="75" y="1357">4. Data &amp; Memory Layer</text>
+  <text class="layer-note" x="75" y="1384">所有计划、状态、偏好、规则、审计都可查、可回滚</text>
+
+  <rect class="box data" x="75" y="1420" width="230" height="62"/>
+  <text class="box-title" x="124" y="1445">Device Registry</text>
+  <text class="box-note" x="130" y="1465">devices/capabilities</text>
+  <rect class="box data" x="335" y="1420" width="230" height="62"/>
+  <text class="box-title" x="390" y="1445">State Store</text>
+  <text class="box-note" x="390" y="1465">latest + history</text>
+  <rect class="box data" x="595" y="1420" width="230" height="62"/>
+  <text class="box-title" x="647" y="1445">Preference DB</text>
+  <text class="box-note" x="652" y="1465">visible memories</text>
+  <rect class="box data" x="855" y="1420" width="230" height="62"/>
+  <text class="box-title" x="912" y="1445">Rule Store</text>
+  <text class="box-note" x="922" y="1465">active rules</text>
+
+  <rect class="box data" x="75" y="1515" width="230" height="62"/>
+  <text class="box-title" x="136" y="1540">Audit Log</text>
+  <text class="box-note" x="126" y="1560">why / what / result</text>
+  <rect class="box data" x="335" y="1515" width="230" height="62"/>
+  <text class="box-title" x="395" y="1540">Policy Log</text>
+  <text class="box-note" x="398" y="1560">blocked/confirmed</text>
+  <rect class="box data" x="595" y="1515" width="490" height="62"/>
+  <text class="box-title" x="720" y="1540">Memory Center for User Review</text>
+  <text class="box-note" x="750" y="1560">enable / disable / delete / rollback</text>
+
+  <path class="arrow-soft" d="M980 1065 L980 1390 L710 1420"/>
+  <path class="arrow-soft" d="M650 1065 L650 1390 L190 1515"/>
+
+  <!-- Connectors -->
+  <rect class="layer connector" x="45" y="1650" width="1110" height="215"/>
+  <text class="layer-title" x="75" y="1687">5. Connector Layer</text>
+  <text class="layer-note" x="75" y="1714">Home Assistant 是第一接入层，但不是框架地基</text>
+
+  <rect class="box connector" x="75" y="1750" width="185" height="62"/>
+  <text class="box-title" x="148" y="1776">Fake</text>
+  <text class="box-note" x="142" y="1796">dev/test</text>
+  <rect class="box connector" x="285" y="1750" width="185" height="62"/>
+  <text class="box-title" x="356" y="1776">Home</text>
+  <text class="box-note" x="340" y="1796">Assistant</text>
+  <rect class="box connector" x="495" y="1750" width="185" height="62"/>
+  <text class="box-title" x="573" y="1776">Mi</text>
+  <text class="box-note" x="570" y="1796">later</text>
+  <rect class="box connector" x="705" y="1750" width="185" height="62"/>
+  <text class="box-title" x="770" y="1776">MQTT</text>
+  <text class="box-note" x="780" y="1796">later</text>
+  <rect class="box connector" x="915" y="1750" width="185" height="62"/>
+  <text class="box-title" x="975" y="1776">Matter</text>
+  <text class="box-note" x="990" y="1796">later</text>
+
+  <path class="arrow" d="M650 1065 L650 1628 L378 1628 L378 1750"/>
+  <path class="arrow" d="M650 1065 L650 1628 L588 1628 L588 1750"/>
+  <path class="arrow" d="M650 1065 L650 1628 L798 1628 L798 1750"/>
+  <path class="arrow" d="M650 1065 L650 1628 L1008 1628 L1008 1750"/>
+
+  <!-- Devices -->
+  <rect class="layer device" x="45" y="1895" width="1110" height="250"/>
+  <text class="layer-title" x="75" y="1932">6. Physical Devices</text>
+  <text class="layer-note" x="75" y="1959">真实设备映射到统一 capability，而不是让 AI 暴露厂商差异</text>
+
+  <rect class="box device" x="75" y="1995" width="160" height="58"/>
+  <text class="box-title" x="128" y="2019">Switch</text>
+  <text class="box-note" x="120" y="2038">smart plug</text>
+  <rect class="box device" x="255" y="1995" width="160" height="58"/>
+  <text class="box-title" x="318" y="2019">AC</text>
+  <text class="box-note" x="324" y="2038">fan</text>
+  <rect class="box device" x="435" y="1995" width="160" height="58"/>
+  <text class="box-title" x="485" y="2019">Curtain</text>
+  <text class="box-note" x="505" y="2038">rack</text>
+  <rect class="box device" x="615" y="1995" width="160" height="58"/>
+  <text class="box-title" x="678" y="2019">TV</text>
+  <text class="box-note" x="675" y="2038">media</text>
+  <rect class="box device" x="795" y="1995" width="160" height="58"/>
+  <text class="box-title" x="848" y="2019">Robot</text>
+  <text class="box-note" x="848" y="2038">washer</text>
+  <rect class="box device" x="975" y="1995" width="140" height="58"/>
+  <text class="box-title" x="1025" y="2019">Pet</text>
+  <text class="box-note" x="1018" y="2038">feeder</text>
+
+  <rect class="box device" x="145" y="2070" width="190" height="58"/>
+  <text class="box-title" x="223" y="2094">Gas</text>
+  <text class="box-note" x="192" y="2113">water heater</text>
+  <rect class="box device" x="365" y="2070" width="190" height="58"/>
+  <text class="box-title" x="428" y="2094">Sensors</text>
+  <text class="box-note" x="403" y="2113">presence/window</text>
+  <rect class="box device" x="585" y="2070" width="190" height="58"/>
+  <text class="box-title" x="650" y="2094">Camera</text>
+  <text class="box-note" x="636" y="2113">privacy risk</text>
+  <rect class="box device" x="805" y="2070" width="230" height="58"/>
+  <text class="box-title" x="870" y="2094">Vendor API</text>
+  <text class="box-note" x="890" y="2113">fallback</text>
+
+  <path class="arrow" d="M378 1812 L378 1880 L155 1880 L155 1995"/>
+  <path class="arrow" d="M378 1812 L378 1880 L335 1880 L335 1995"/>
+  <path class="arrow" d="M378 1812 L378 1880 L515 1880 L515 1995"/>
+  <path class="arrow" d="M378 1812 L378 1880 L695 1880 L695 1995"/>
+  <path class="arrow" d="M378 1812 L378 1880 L875 1880 L875 1995"/>
+  <path class="arrow" d="M378 1812 L378 1880 L1045 1880 L1045 1995"/>
+</svg>

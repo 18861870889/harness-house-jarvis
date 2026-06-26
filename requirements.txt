@@ -1,0 +1,4 @@
+# Harness-House - AI-powered smart home control system
+
+# Initial setup
+# Python dependencies will be added as project develops

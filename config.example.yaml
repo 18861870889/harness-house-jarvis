@@ -1,0 +1,40 @@
+# Harness-House Configuration Template
+# Copy this to config.yaml and fill in your details
+
+# AI Agent settings
+ai:
+  provider: openai  # openai / local / custom
+  model: gpt-4o
+  api_key: YOUR_API_KEY_HERE
+  base_url: https://api.openai.com/v1  # change for local models
+
+# Home Assistant connection
+home_assistant:
+  url: http://localhost:8123
+  token: YOUR_HA_LONG_LIVED_TOKEN_HERE
+
+# MQTT broker (if using MQTT devices directly)
+mqtt:
+  host: localhost
+  port: 1883
+  username: ""
+  password: ""
+
+# Communication channels
+channels:
+  telegram:
+    enabled: false
+    bot_token: YOUR_TG_BOT_TOKEN
+    allowed_users: []
+  weixin:
+    enabled: false
+  api:
+    enabled: true
+    port: 8080
+
+# Automation rules
+automation:
+  # Example: turn on lights when someone comes home
+  # - trigger: presence_detected
+  #   action: light.turn_on
+  #   target: living_room
