@@ -656,6 +656,12 @@ function validateHcmCommandRequest(payload) {
   if (payload.sessionId !== undefined && typeof payload.sessionId !== "string") {
     throw badRequest("sessionId must be a string");
   }
+  if (payload.skipPlanner !== undefined && typeof payload.skipPlanner !== "boolean") {
+    throw badRequest("skipPlanner must be a boolean");
+  }
+  if (payload.plannerDraft !== undefined && (typeof payload.plannerDraft !== "object" || Array.isArray(payload.plannerDraft))) {
+    throw badRequest("plannerDraft must be an object");
+  }
 }
 
 function validateReplayRequest(payload) {
@@ -881,7 +887,28 @@ async function runHcmCommandPipeline(payload) {
         }),
       { summarize: summarizePromptContextPack },
     );
-    const draft = plannerDevices.length === 0
+    // skip_planner: when an external caller (e.g. Hermes) provides a planner_draft,
+    // we skip the LLM call entirely and use the provided draft directly.
+    // This eliminates the second LLM call (~3.5s) when the caller has already
+    // understood the intent. Safety Gate, Policy Gate, Decision Review, and
+    // Provider Simulation still run — only the LLM planner is skipped.
+    const useExternalDraft = Boolean(payload.skipPlanner) && payload.plannerDraft;
+    const draft = useExternalDraft
+      ? await runCommandStage(
+          trace,
+          "planner_external",
+          () => payload.plannerDraft,
+          {
+            summarize: (draft) => ({
+              intent: draft.intent,
+              intentType: draft.intent_type ?? draft.intent_frame?.intent_type,
+              frame: Boolean(draft.intent_frame),
+              actionCount: draft.actions?.length ?? draft.intent_frame?.decision?.actions?.length ?? 0,
+              source: "external",
+            }),
+          },
+        )
+      : plannerDevices.length === 0
       ? await runCommandStage(
           trace,
           "planner_fallback",
