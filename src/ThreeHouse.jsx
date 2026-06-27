@@ -315,11 +315,18 @@ function addRooms(group, sceneRooms, selectedRoomId, roomStats) {
     const executing = room.layers?.includes("execution");
     const stats = roomStats.get(room.id) ?? { total: room.deviceCount ?? 0, active: 0 };
     const isPolygon = Array.isArray(room.polygonScenePoints) && room.polygonScenePoints.length >= 3;
+    const mergedRects = Array.isArray(room.allRects) && room.allRects.length > 1 ? room.allRects : null;
 
     const texture = getFloorTexture(room.type).clone();
     if (isPolygon) {
       const bounds = room.polygonScenePoints.reduce(
         (acc, p) => ({ minX: Math.min(acc.minX, p.x), maxX: Math.max(acc.maxX, p.x), minZ: Math.min(acc.minZ, p.z), maxZ: Math.max(acc.maxZ, p.z) }),
+        { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity },
+      );
+      texture.repeat.set(Math.max(1, (bounds.maxX - bounds.minX) / 2), Math.max(1, (bounds.maxZ - bounds.minZ) / 2));
+    } else if (mergedRects) {
+      const bounds = mergedRects.reduce(
+        (acc, r) => ({ minX: Math.min(acc.minX, r.x - r.width / 2), maxX: Math.max(acc.maxX, r.x + r.width / 2), minZ: Math.min(acc.minZ, r.z - r.depth / 2), maxZ: Math.max(acc.maxZ, r.z + r.depth / 2) }),
         { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity },
       );
       texture.repeat.set(Math.max(1, (bounds.maxX - bounds.minX) / 2), Math.max(1, (bounds.maxZ - bounds.minZ) / 2));
@@ -335,7 +342,8 @@ function addRooms(group, sceneRooms, selectedRoomId, roomStats) {
       emissiveIntensity: active || alert || preview || executing ? 0.06 : 0,
     });
 
-    let floor;
+    // Render floor(s): single rect, merged multi-rect, or polygon
+    const floorMeshes = [];
     if (isPolygon) {
       const shape = new THREE.Shape();
       const pts = room.polygonScenePoints;
@@ -344,17 +352,27 @@ function addRooms(group, sceneRooms, selectedRoomId, roomStats) {
       shape.closePath();
       const floorGeo = new THREE.ShapeGeometry(shape);
       floorGeo.rotateX(-Math.PI / 2);
-      floor = new THREE.Mesh(floorGeo, floorMaterial);
+      const floor = new THREE.Mesh(floorGeo, floorMaterial);
       floor.position.y = 0.05;
+      floorMeshes.push(floor);
+    } else if (mergedRects) {
+      for (const r of mergedRects) {
+        const floor = new THREE.Mesh(new THREE.BoxGeometry(r.width, FLOOR_THICKNESS, r.depth), floorMaterial);
+        floor.position.set(r.x, 0, r.z);
+        floorMeshes.push(floor);
+      }
     } else {
-      floor = new THREE.Mesh(new THREE.BoxGeometry(room.width, FLOOR_THICKNESS, room.depth), floorMaterial);
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(room.width, FLOOR_THICKNESS, room.depth), floorMaterial);
       floor.position.set(room.x, 0, room.z);
+      floorMeshes.push(floor);
     }
-    floor.receiveShadow = true;
-    floor.userData.roomId = room.id;
-    group.add(floor);
+    for (const floor of floorMeshes) {
+      floor.receiveShadow = true;
+      floor.userData.roomId = room.id;
+      group.add(floor);
+    }
 
-    addWalls(group, room, active);
+    addWalls(group, room, active, mergedRects);
 
     const labelText = `${room.name} · ${stats.active}/${stats.total}`;
     const label = createTextSprite(labelText, {
@@ -403,7 +421,7 @@ function addRoomLayerBadge(group, room, { executing, preview, alert }) {
   group.add(ring);
 }
 
-function addWalls(group, room, active) {
+function addWalls(group, room, active, mergedRects = null) {
   const height = active ? WALL_HEIGHT_SELECTED : WALL_HEIGHT_DEFAULT;
   const opacity = active ? WALL_OPACITY_SELECTED : WALL_OPACITY_DEFAULT;
   const color = active ? WALL_COLOR_SELECTED : WALL_COLOR;
@@ -437,19 +455,38 @@ function addWalls(group, room, active) {
     return;
   }
 
-  const segments = [
-    [room.width, WALL_THICKNESS, 0, -room.depth / 2],
-    [room.width, WALL_THICKNESS, 0, room.depth / 2],
-    [WALL_THICKNESS, room.depth, -room.width / 2, 0],
-    [WALL_THICKNESS, room.depth, room.width / 2, 0],
-  ];
-  for (const [w, d, ox, oz] of segments) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, height, d), material.clone());
-    wall.position.set(room.x + ox, height / 2, room.z + oz);
-    wall.castShadow = true;
-    wall.userData.roomId = room.id;
-    group.add(wall);
+  // For merged rooms, render walls per-rect but skip internal shared walls
+  const rects = mergedRects ?? [{ x: room.x, z: room.z, width: room.width, depth: room.depth }];
+  const tol = 0.05;
+  for (const rect of rects) {
+    const segments = [
+      [rect.width, WALL_THICKNESS, 0, -rect.depth / 2, "north"],
+      [rect.width, WALL_THICKNESS, 0, rect.depth / 2, "south"],
+      [WALL_THICKNESS, rect.depth, -rect.width / 2, 0, "west"],
+      [WALL_THICKNESS, rect.depth, rect.width / 2, 0, "east"],
+    ];
+    for (const [w, d, ox, oz, side] of segments) {
+      const wallMidX = rect.x + ox;
+      const wallMidZ = rect.z + oz;
+      // Skip this wall if its midpoint is inside another rect in the group (internal wall)
+      if (isPointInAnyRect(wallMidX, wallMidZ, rects, rect, tol)) continue;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, height, d), material.clone());
+      wall.position.set(wallMidX, height / 2, wallMidZ);
+      wall.castShadow = true;
+      wall.userData.roomId = room.id;
+      group.add(wall);
+    }
   }
+}
+
+function isPointInAnyRect(px, pz, rects, excludeRect, tol = 0.05) {
+  for (const r of rects) {
+    if (r === excludeRect) continue;
+    const insideX = px > r.x - r.width / 2 - tol && px < r.x + r.width / 2 + tol;
+    const insideZ = pz > r.z - r.depth / 2 - tol && pz < r.z + r.depth / 2 + tol;
+    if (insideX && insideZ) return true;
+  }
+  return false;
 }
 
 // ═══════════════════════════════════════════════════
