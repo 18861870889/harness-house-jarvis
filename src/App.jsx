@@ -276,16 +276,6 @@ export default function App() {
   }, []);
 
   const currentRoomId = useMemo(() => inferCurrentRoom(devices), [devices]);
-  const liveOccupiedRooms = useMemo(() => {
-    const occupied = Object.values(devices)
-      .filter(
-        (device) =>
-          ["presence_sensor", "motion_sensor"].includes(device.type) &&
-          device.detected,
-      )
-      .map((device) => device.roomId);
-    return [...new Set(occupied)];
-  }, [devices]);
   const baseHouseSceneModel = useMemo(
     () =>
       createHouseSceneModel({
@@ -325,6 +315,20 @@ export default function App() {
     () =>
       houseSceneModel.devices.filter((device) => device.roomId === selectedRoomId),
     [houseSceneModel, selectedRoomId],
+  );
+  const liveOccupiedRooms = useMemo(() => {
+    const occupied = houseSceneModel.devices
+      .filter(
+        (device) =>
+          ["presence_sensor", "motion_sensor"].includes(device.type) &&
+          device.detected,
+      )
+      .map((device) => device.roomId);
+    return [...new Set(occupied)];
+  }, [houseSceneModel.devices]);
+  const liveCurrentRoomId = useMemo(
+    () => inferCurrentRoom(Object.fromEntries(houseSceneModel.devices.map((d) => [d.id, d]))),
+    [houseSceneModel.devices],
   );
   const selectedDevice = useMemo(
     () => selectedRoomDevices.find((device) => device.id === selectedDeviceId) ?? null,
@@ -1169,7 +1173,7 @@ export default function App() {
           onReplay={replayAuditEntry}
           onIgnoreCandidate={ignoreLearningCandidate}
           onDeleteCandidate={deleteLearningCandidateFromMemory}
-          liveRoomName={getSceneRoomName(currentRoomId, houseSceneModel.rooms)}
+          liveRoomName={getSceneRoomName(liveCurrentRoomId, houseSceneModel.rooms)}
           liveOccupiedRooms={liveOccupiedRooms.map((id) => getSceneRoomName(id, houseSceneModel.rooms))}
         />
       </aside>
