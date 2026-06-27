@@ -1,6 +1,6 @@
 # Current Status
 
-> Last updated: 2026-06-24. This document is the short source of truth for current progress, near-term plans, and safety boundaries.
+> Last updated: 2026-06-22. This document is the short source of truth for current progress, near-term plans, and safety boundaries.
 
 ## Current Version
 
@@ -9,6 +9,10 @@ Current engineering progress: `v0.24`.
 Completed major runtime capabilities:
 
 - Local 3D MVP with simulator devices and Three.js house view.
+  - V2 visual upgrade: dollhouse walls, floor textures (wood/tile/stone), light sub-types (pendant/spotlight/strip/ceiling/floor), device entity modeling (fan/AC/sensor/TV/robot).
+  - V2 info architecture: removed per-device text labels, replaced with status dots + room summary badges + legend.
+  - Polygon room support: map editor supports irregular polygon rooms via SVG drawing mode; 3D rendering uses THREE.Shape + edge-based walls.
+  - See `docs/3D-HOUSE-V2-DESIGN.md` for design spec.
 - OpenAI-compatible LLM planning, currently usable with DeepSeek-style providers.
 - Home Assistant discovery and HCM mapping.
 - HCM overlay and review decisions.
