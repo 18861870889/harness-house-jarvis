@@ -224,6 +224,18 @@ export function updateSpatialRoomRect(state, roomId, rect) {
   return next;
 }
 
+export function updateSpatialRoomRects(state, updates) {
+  let next = createSpatialEditorState(state);
+  for (const { roomId, rect } of updates) {
+    if (!roomId) continue;
+    next.roomRects[roomId] = normalizeEditorRect(rect);
+    next.customRooms = next.customRooms.map((room) =>
+      room.id === roomId ? { ...room, mapRect: next.roomRects[roomId] } : room
+    );
+  }
+  return next;
+}
+
 export function assignSpatialDevice(state, deviceId, roomId) {
   const next = createSpatialEditorState(state);
   if (!deviceId) return next;

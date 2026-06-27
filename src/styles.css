@@ -89,7 +89,7 @@ button {
   position: absolute;
   top: 10px;
   right: 10px;
-  z-index: 10;
+  z-index: 100;
   display: flex;
   gap: 6px;
 }
@@ -378,7 +378,11 @@ button {
   pointer-events: none;
   border: 1px dashed rgba(22, 143, 131, 0.38);
   background: rgba(229, 244, 240, 0.38);
-  border-radius: 6px;
+  border-radius: 0;
+}
+
+.spatial-room-zone.merged {
+  border-radius: 0;
 }
 
 .merge-btn {

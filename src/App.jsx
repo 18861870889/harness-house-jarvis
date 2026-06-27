@@ -55,6 +55,7 @@ import {
   SPATIAL_DEVICE_STATUS,
   updateSpatialDeviceName,
   updateSpatialRoomRect,
+  updateSpatialRoomRects,
   updateSpatialRoomName,
 } from "./spatialHomeEditor.js";
 import {
@@ -2054,6 +2055,40 @@ function thingStateBadge(thing) {
   return thing.online === false ? "离线" : "受保护";
 }
 
+function getMergedRectBorders(rect, allRects) {
+  const tol = 0.5;
+  const rectRight = rect.left + rect.width;
+  const rectBottom = rect.top + rect.height;
+  const hRange = (r) => [r.left, r.left + r.width];
+  const vRange = (r) => [r.top, r.top + r.height];
+  const rangesOverlap = (a, b, t = tol) => a[0] < b[1] - t && a[1] > b[0] + t;
+
+  const hasNeighbor = (side) => allRects.some((other) => {
+    if (other === rect) return false;
+    const oRight = other.left + other.width;
+    const oBottom = other.top + other.height;
+    switch (side) {
+      case "right":
+        return Math.abs(rectRight - other.left) < tol && rangesOverlap(vRange(rect), vRange(other));
+      case "left":
+        return Math.abs(rect.left - oRight) < tol && rangesOverlap(vRange(rect), vRange(other));
+      case "bottom":
+        return Math.abs(rectBottom - other.top) < tol && rangesOverlap(hRange(rect), hRange(other));
+      case "top":
+        return Math.abs(rect.top - oBottom) < tol && rangesOverlap(hRange(rect), hRange(other));
+      default:
+        return false;
+    }
+  });
+
+  return {
+    right: !hasNeighbor("right"),
+    left: !hasNeighbor("left"),
+    bottom: !hasNeighbor("bottom"),
+    top: !hasNeighbor("top"),
+  };
+}
+
 function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSelectRoom, workspace = false }) {
   const mapRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -2097,20 +2132,41 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
       event.preventDefault();
       const dx = ((event.clientX - interaction.clientX) / interaction.mapWidth) * 100;
       const dy = ((event.clientY - interaction.clientY) / interaction.mapHeight) * 100;
-      const start = interaction.rect;
-      const nextRect =
-        interaction.mode === "resize"
-          ? clampRoomRectForMap({
-              ...start,
-              width: start.width + dx,
-              height: start.height + dy,
-            })
-          : clampRoomRectForMap({
-              ...start,
-              left: start.left + dx,
-              top: start.top + dy,
-            });
-      updateState(updateSpatialRoomRect(stateRef.current, interaction.roomId, nextRect));
+      if (interaction.groupRects && interaction.groupRects.length > 1) {
+        const updates = interaction.mode === "resize"
+          ? interaction.groupRects.map((entry) => ({
+              roomId: entry.roomId,
+              rect: clampRoomRectForMap({
+                ...entry.rect,
+                width: entry.rect.width + dx,
+                height: entry.rect.height + dy,
+              }),
+            }))
+          : interaction.groupRects.map((entry) => ({
+              roomId: entry.roomId,
+              rect: clampRoomRectForMap({
+                ...entry.rect,
+                left: entry.rect.left + dx,
+                top: entry.rect.top + dy,
+              }),
+            }));
+        updateState(updateSpatialRoomRects(stateRef.current, updates));
+      } else {
+        const start = interaction.rect;
+        const nextRect =
+          interaction.mode === "resize"
+            ? clampRoomRectForMap({
+                ...start,
+                width: start.width + dx,
+                height: start.height + dy,
+              })
+            : clampRoomRectForMap({
+                ...start,
+                left: start.left + dx,
+                top: start.top + dy,
+              });
+        updateState(updateSpatialRoomRect(stateRef.current, interaction.roomId, nextRect));
+      }
     };
     const handlePointerUp = () => {
       activeRoomEditRef.current = null;
@@ -2241,6 +2297,12 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
       if (!mapRect) return;
       event.preventDefault();
       event.stopPropagation();
+      const groupRects = room.mergedCount && room.allMapRects?.length > 1
+        ? room.allMapRects.map((r, i) => ({
+            roomId: i === 0 ? room.id : (stateRef.current.roomGroups?.[room.id]?.[i - 1] ?? null),
+            rect: clampRoomRectForMap(r),
+          })).filter((entry) => entry.roomId)
+        : [{ roomId: room.id, rect: clampRoomRectForMap(room.mapRect) }];
       activeRoomEditRef.current = {
         roomId: room.id,
         mode,
@@ -2249,6 +2311,7 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
         mapWidth: Math.max(1, mapRect.width),
         mapHeight: Math.max(1, mapRect.height),
         rect: clampRoomRectForMap(room.mapRect),
+        groupRects,
       };
       setActiveRoomEditKey(`${room.id}:${mode}`);
       onSelectRoom(room.id);
@@ -2471,20 +2534,30 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                 <span>松开以上传为参考户型图</span>
               </div>
             )}
-            {model.rooms.map((room) => (
+            {model.rooms.map((room) => {
+              const mergedRects = room.mergedCount && room.allMapRects?.length > 1 ? room.allMapRects : null;
+              return (
               <Fragment key={room.id}>
-                {room.mergedCount && room.allMapRects?.length > 1 && room.allMapRects.slice(1).map((rect, i) => (
-                  <div
-                    className="spatial-room-zone merged-secondary"
-                    key={`${room.id}-sec-${i}`}
-                    style={{
-                      left: `${rect.left}%`,
-                      top: `${rect.top}%`,
-                      width: `${rect.width}%`,
-                      height: `${rect.height}%`,
-                    }}
-                  />
-                ))}
+                {mergedRects && mergedRects.map((rect, i) => {
+                  if (i === 0) return null;
+                  const borders = getMergedRectBorders(rect, mergedRects);
+                  return (
+                    <div
+                      className="spatial-room-zone merged-secondary"
+                      key={`${room.id}-sec-${i}`}
+                      style={{
+                        left: `${rect.left}%`,
+                        top: `${rect.top}%`,
+                        width: `${rect.width}%`,
+                        height: `${rect.height}%`,
+                        borderLeftWidth: borders.left ? undefined : 0,
+                        borderRightWidth: borders.right ? undefined : 0,
+                        borderTopWidth: borders.top ? undefined : 0,
+                        borderBottomWidth: borders.bottom ? undefined : 0,
+                      }}
+                    />
+                  );
+                })}
                 <button
                   className={[
                     "spatial-room-zone",
@@ -2495,12 +2568,28 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                     room.mergedCount ? "merged" : "",
                   ].filter(Boolean).join(" ")}
                   type="button"
-                  style={room.mapRect ? {
-                    left: `${room.mapRect.left}%`,
-                    top: `${room.mapRect.top}%`,
-                    width: `${room.mapRect.width}%`,
-                    height: `${room.mapRect.height}%`,
-                  } : undefined}
+                  style={(() => {
+                    if (!room.mapRect) return undefined;
+                    if (mergedRects) {
+                      const borders = getMergedRectBorders(room.mapRect, mergedRects);
+                      return {
+                        left: `${room.mapRect.left}%`,
+                        top: `${room.mapRect.top}%`,
+                        width: `${room.mapRect.width}%`,
+                        height: `${room.mapRect.height}%`,
+                        borderLeftWidth: borders.left ? undefined : 0,
+                        borderRightWidth: borders.right ? undefined : 0,
+                        borderTopWidth: borders.top ? undefined : 0,
+                        borderBottomWidth: borders.bottom ? undefined : 0,
+                      };
+                    }
+                    return {
+                      left: `${room.mapRect.left}%`,
+                      top: `${room.mapRect.top}%`,
+                      width: `${room.mapRect.width}%`,
+                      height: `${room.mapRect.height}%`,
+                    };
+                  })()}
                   onClick={(event) => handleRoomClick(room.id, event)}
                   onPointerDown={(event) => handleRoomPointerDown(event, room, "move")}
                   onDragOver={handleMapDragOver}
@@ -2517,7 +2606,8 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                   )}
                 </button>
               </Fragment>
-            ))}
+              );
+            })}
             {markers.map(({ device, x, y, ghost }) => (
               <button
                 className={[
