@@ -142,6 +142,39 @@ button {
   backdrop-filter: blur(12px);
 }
 
+.scene-legend {
+  position: absolute;
+  top: 158px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid rgba(69, 111, 104, 0.18);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  color: #5f7470;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.scene-legend .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 3px;
+  vertical-align: middle;
+}
+
+.scene-legend .dot-active { background: #22c55e; }
+.scene-legend .dot-inactive { background: #94a3b8; }
+.scene-legend .dot-alert { background: #ef4444; }
+
 .left-rail,
 .right-rail {
   position: absolute;
