@@ -2360,7 +2360,7 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                 ].filter(Boolean).join(" ")}
                 key={`${device.id}:${ghost ? "ghost" : "placed"}`}
                 type="button"
-                draggable={!ghost}
+                draggable
                 style={{ left: `${x}%`, top: `${y}%` }}
                 onDragStart={(event) => handleDeviceDrag(event, device.id)}
                 onClick={() => handleSelectDevice(device)}
