@@ -457,26 +457,59 @@ function addWalls(group, room, active, mergedRects = null) {
 
   // For merged rooms, render walls per-rect but skip internal shared walls
   const rects = mergedRects ?? [{ x: room.x, z: room.z, width: room.width, depth: room.depth }];
-  const tol = 0.05;
+  const tol = 0.12;
   for (const rect of rects) {
+    const rectLeft = rect.x - rect.width / 2;
+    const rectRight = rect.x + rect.width / 2;
+    const rectTop = rect.z - rect.depth / 2;
+    const rectBottom = rect.z + rect.depth / 2;
+    // Each wall: [length, thickness, offsetX, offsetZ, side]
+    // Check if this wall is shared with (overlaps) a wall of another rect in the group
     const segments = [
-      [rect.width, WALL_THICKNESS, 0, -rect.depth / 2, "north"],
-      [rect.width, WALL_THICKNESS, 0, rect.depth / 2, "south"],
-      [WALL_THICKNESS, rect.depth, -rect.width / 2, 0, "west"],
-      [WALL_THICKNESS, rect.depth, rect.width / 2, 0, "east"],
+      [rect.width, WALL_THICKNESS, 0, -rect.depth / 2, "north", rectTop, "h", rectLeft, rectRight],
+      [rect.width, WALL_THICKNESS, 0, rect.depth / 2, "south", rectBottom, "h", rectLeft, rectRight],
+      [WALL_THICKNESS, rect.depth, -rect.width / 2, 0, "west", rectLeft, "v", rectTop, rectBottom],
+      [WALL_THICKNESS, rect.depth, rect.width / 2, 0, "east", rectRight, "v", rectTop, rectBottom],
     ];
-    for (const [w, d, ox, oz, side] of segments) {
-      const wallMidX = rect.x + ox;
-      const wallMidZ = rect.z + oz;
-      // Skip this wall if its midpoint is inside another rect in the group (internal wall)
-      if (isPointInAnyRect(wallMidX, wallMidZ, rects, rect, tol)) continue;
+    for (const [w, d, ox, oz, side, wallPos, orient, rangeStart, rangeEnd] of segments) {
+      if (isWallShared(wallPos, orient, rangeStart, rangeEnd, rects, rect, tol)) continue;
       const wall = new THREE.Mesh(new THREE.BoxGeometry(w, height, d), material.clone());
-      wall.position.set(wallMidX, height / 2, wallMidZ);
+      wall.position.set(rect.x + ox, height / 2, rect.z + oz);
       wall.castShadow = true;
       wall.userData.roomId = room.id;
       group.add(wall);
     }
   }
+}
+
+function isWallShared(wallPos, orient, rangeStart, rangeEnd, rects, excludeRect, tol) {
+  for (const r of rects) {
+    if (r === excludeRect) continue;
+    const rLeft = r.x - r.width / 2;
+    const rRight = r.x + r.width / 2;
+    const rTop = r.z - r.depth / 2;
+    const rBottom = r.z + r.depth / 2;
+    if (orient === "h") {
+      // Horizontal wall (north/south): check if any rect's north or south wall is at same z
+      const matchTop = Math.abs(wallPos - rTop) < tol;
+      const matchBottom = Math.abs(wallPos - rBottom) < tol;
+      if (matchTop || matchBottom) {
+        // Check x-range overlap
+        const overlap = Math.min(rangeEnd, rRight) - Math.max(rangeStart, rLeft);
+        if (overlap > tol) return true;
+      }
+    } else {
+      // Vertical wall (west/east): check if any rect's west or east wall is at same x
+      const matchLeft = Math.abs(wallPos - rLeft) < tol;
+      const matchRight = Math.abs(wallPos - rRight) < tol;
+      if (matchLeft || matchRight) {
+        // Check z-range overlap
+        const overlap = Math.min(rangeEnd, rBottom) - Math.max(rangeStart, rTop);
+        if (overlap > tol) return true;
+      }
+    }
+  }
+  return false;
 }
 
 function isPointInAnyRect(px, pz, rects, excludeRect, tol = 0.05) {
