@@ -236,10 +236,8 @@ export function composeSpatialDeviceName(device, roomName, state) {
   const baseName =
     editorState.namingMode === NAMING_MODES.ROOM_CUSTOM
       ? editorState.customDeviceNames[device.id] || stripRoomPrefix(device.name, roomName)
-      : device.name;
-  if (!roomName) return baseName;
-  if (String(baseName).startsWith(roomName)) return baseName;
-  return `${roomName}${baseName}`;
+      : stripRoomPrefix(device.name, roomName);
+  return baseName;
 }
 
 export function applySpatialEditorToScene(sceneModel, spatialModel) {
@@ -381,6 +379,10 @@ function createSpatialSuggestions({ rooms, devices, state }) {
       return suggestions;
     })
     .filter((suggestion) => !dismissed.has(suggestion.id))
+    .filter((suggestion, index, array) =>
+      // Dedup: keep only first suggestion per unique title+roomName combination
+      index === array.findIndex((s) => s.title === suggestion.title && s.roomName === suggestion.roomName)
+    )
     .sort(compareSpatialSuggestions);
 }
 
@@ -479,7 +481,18 @@ function normalizeEditorDevices({ hcmHome, sceneModel, rooms, state }) {
         ? state.deviceAssignments[device.id]
         : device.defaultRoomId;
       const assignedRoom = assignedRoomId ? roomById.get(assignedRoomId) : null;
-      const placement = state.devicePlacements[device.id] ?? null;
+      let placement = state.devicePlacements[device.id] ?? null;
+      // Auto-place: if device has an assigned room with a mapRect but no explicit placement,
+      // generate a default placement at the room center
+      if (!placement && assignedRoom?.mapRect) {
+        placement = {
+          placed: true,
+          x: assignedRoom.mapRect.centerX,
+          y: assignedRoom.mapRect.centerY,
+          roomId: assignedRoomId,
+          auto: true,  // mark as auto-placed so UI can distinguish
+        };
+      }
       return {
         ...device,
         assignedRoomId: assignedRoomId || null,

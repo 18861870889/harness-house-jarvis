@@ -1091,7 +1091,7 @@ export default function App() {
         <RailHeader
           eyebrow="Home"
           title={selectedRoomName}
-          meta={`${selectedRoomDevices.length} 个设备 · ${activeDevices.length} 个活跃`}
+          meta={`${selectedRoomName} · ${selectedRoomDevices.length} 个设备 · ${activeDevices.length} 个活跃`}
           icon={Home}
         />
         <RoomSelector rooms={houseSceneModel.rooms} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} />
@@ -1139,7 +1139,6 @@ export default function App() {
           }}
           onExecutionPreferenceChange={setExecutionPreference}
         />
-        <RuntimeGuardPanel runtimeStatus={runtimeStatus} />
         <PendingPlan plan={pendingPlan} onConfirm={confirmPending} onCancel={cancelPending} />
         <PlanPreview plan={lastPlan} />
         <IntelligencePanel
@@ -1152,15 +1151,6 @@ export default function App() {
           onIgnoreCandidate={ignoreLearningCandidate}
           onDeleteCandidate={deleteLearningCandidateFromMemory}
         />
-        <AutomationSuggestionsPanel
-          data={automationSuggestions}
-          actionId={automationActionId}
-          onCapture={captureHomeEvents}
-          onSimulate={simulateAutomation}
-          onReview={reviewAutomationSuggestion}
-        />
-        <SensorReadouts sceneModel={houseSceneModel} fallbackDevices={devices} />
-        <AuditLog logs={logs} />
       </aside>
 
       <div className="bottom-bar">
