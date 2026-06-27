@@ -2759,15 +2759,37 @@ const CAPABILITY_LABELS = {
   turn_on: "开启",
   turn_off: "关闭",
   set_brightness: "调节亮度",
+  set_color_temperature: "调节色温",
   set_temperature: "调节温度",
   set_speed: "调节风速",
+  set_mode: "模式切换",
   set_position: "调节位置",
+  set_volume: "调节音量",
+  set_input: "输入源切换",
   start_robot: "启动清扫",
   dock_robot: "回充",
   start_cycle: "启动运行",
   stop_cycle: "停止运行",
   dispense_food: "投放食物",
   set_privacy_mode: "隐私模式",
+};
+
+const ENUM_LABELS = {
+  cool: "制冷",
+  heat: "制热",
+  dry: "除湿",
+  fan_only: "送风",
+  hdmi1: "HDMI 1",
+  hdmi2: "HDMI 2",
+  tv: "电视",
+  cast: "投屏",
+};
+
+const AC_MODE_LABELS = {
+  cool: "制冷",
+  heat: "制热",
+  dry: "除湿",
+  fan_only: "送风",
 };
 
 const RISK_LABELS = {
@@ -2824,6 +2846,11 @@ function DeviceCapabilityPanel({ device, capabilityOverrides, onToggleCapability
                       {cap.min}–{cap.max}{cap.unit}
                     </span>
                   )}
+                  {cap.valueType === "enum" && (
+                    <span className="capability-range">
+                      {(cap.options ?? []).map((opt) => ENUM_LABELS[opt] ?? opt).join(" / ")}
+                    </span>
+                  )}
                   <span className="capability-confirm">{CONFIRMATION_LABELS[cap.confirmation] ?? cap.confirmation}</span>
                 </div>
               </div>
@@ -2849,10 +2876,10 @@ function DeviceCapabilityPanel({ device, capabilityOverrides, onToggleCapability
 function deviceStateLabel(device) {
   if (device.statusLabel) return device.statusLabel;
   if (device.type === "light") return device.on ? `${device.brightness}%` : "关闭";
-  if (device.type === "ac") return device.on ? `${device.temperature}°C` : "关闭";
+  if (device.type === "ac") return device.on ? `${device.temperature}°C · ${AC_MODE_LABELS[device.mode] ?? device.mode ?? "制冷"}` : "关闭";
   if (device.type === "fan") return device.on ? `${device.speed}档` : "关闭";
   if (device.type === "curtain") return `${device.position}%`;
-  if (device.type === "tv") return device.on ? "开启" : "关闭";
+  if (device.type === "tv") return device.on ? `开启 · ${device.channel ?? device.input ?? "HDMI 1"}` : "关闭";
   if (device.type === "robot_vacuum") return `${device.status} · ${device.battery}%`;
   if (device.type === "pet_feeder") return `${device.portionsToday}份 · ${device.lastFeed}`;
   if (device.type === "presence_sensor" || device.type === "motion_sensor") {

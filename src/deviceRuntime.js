@@ -2,9 +2,13 @@ export const CAPABILITIES = {
   TURN_ON: "turn_on",
   TURN_OFF: "turn_off",
   SET_BRIGHTNESS: "set_brightness",
+  SET_COLOR_TEMPERATURE: "set_color_temperature",
   SET_TEMPERATURE: "set_temperature",
   SET_SPEED: "set_speed",
+  SET_MODE: "set_mode",
   SET_POSITION: "set_position",
+  SET_VOLUME: "set_volume",
+  SET_INPUT: "set_input",
   START_ROBOT: "start_robot",
   DOCK_ROBOT: "dock_robot",
   START_CYCLE: "start_cycle",
@@ -23,10 +27,14 @@ export const RISK_CONFIRMATION = {
 const STATE_KEYS = [
   "on",
   "brightness",
+  "colorTemperature",
   "temperature",
   "mode",
   "speed",
   "position",
+  "volume",
+  "input",
+  "channel",
   "detected",
   "open",
   "status",
@@ -45,12 +53,17 @@ const DEVICE_CAPABILITY_PROFILES = {
     booleanCapability(CAPABILITIES.TURN_ON),
     booleanCapability(CAPABILITIES.TURN_OFF),
     numberCapability(CAPABILITIES.SET_BRIGHTNESS, 0, 100, "%"),
+    numberCapability(CAPABILITIES.SET_COLOR_TEMPERATURE, 2700, 6500, "K"),
   ],
   switch: [booleanCapability(CAPABILITIES.TURN_ON), booleanCapability(CAPABILITIES.TURN_OFF)],
   ac: [
     booleanCapability(CAPABILITIES.TURN_ON),
     booleanCapability(CAPABILITIES.TURN_OFF),
     numberCapability(CAPABILITIES.SET_TEMPERATURE, 16, 30, "C"),
+    numberCapability(CAPABILITIES.SET_SPEED, 0, 5, "level"),
+    enumCapability(CAPABILITIES.SET_MODE, ["cool", "heat", "dry", "fan_only"], {
+      risk: "low",
+    }),
   ],
   fan: [
     booleanCapability(CAPABILITIES.TURN_ON),
@@ -58,7 +71,14 @@ const DEVICE_CAPABILITY_PROFILES = {
     numberCapability(CAPABILITIES.SET_SPEED, 0, 3, "level"),
   ],
   curtain: [numberCapability(CAPABILITIES.SET_POSITION, 0, 100, "%")],
-  tv: [booleanCapability(CAPABILITIES.TURN_ON), booleanCapability(CAPABILITIES.TURN_OFF)],
+  tv: [
+    booleanCapability(CAPABILITIES.TURN_ON),
+    booleanCapability(CAPABILITIES.TURN_OFF),
+    numberCapability(CAPABILITIES.SET_VOLUME, 0, 100, "%"),
+    enumCapability(CAPABILITIES.SET_INPUT, ["hdmi1", "hdmi2", "tv", "cast"], {
+      risk: "low",
+    }),
+  ],
   gas_heater: [
     booleanCapability(CAPABILITIES.TURN_ON, { risk: "high", confirmation: "always" }),
     booleanCapability(CAPABILITIES.TURN_OFF, { risk: "high", confirmation: "always" }),
@@ -264,5 +284,14 @@ function numberCapability(name, min, max, unit, options = {}) {
     max,
     unit,
     ...options,
+  };
+}
+
+function enumCapability(name, options, overrides = {}) {
+  return {
+    name,
+    valueType: "enum",
+    options,
+    ...overrides,
   };
 }
