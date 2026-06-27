@@ -32,6 +32,7 @@ export function createSpatialEditorState(base = {}) {
     roomNames: normalizeRecord(base.roomNames),
     roomRects: normalizeRectRecord(base.roomRects),
     roomPolygons: normalizePolygonRecord(base.roomPolygons),
+    roomGroups: normalizeRoomGroups(base.roomGroups),
     customRooms: normalizeCustomRooms(base.customRooms),
     deviceAssignments: normalizeRecord(base.deviceAssignments),
     devicePlacements: normalizePlacementRecord(base.devicePlacements),
@@ -50,6 +51,7 @@ export function hasSpatialEditorEdits(state = {}) {
       Object.keys(editorState.roomNames).length > 0 ||
       Object.keys(editorState.roomRects).length > 0 ||
       Object.keys(editorState.roomPolygons).length > 0 ||
+      Object.keys(editorState.roomGroups).length > 0 ||
       editorState.customRooms.length > 0 ||
       Object.keys(editorState.deviceAssignments).length > 0 ||
       Object.keys(editorState.devicePlacements).length > 0 ||
@@ -168,6 +170,46 @@ export function removeSpatialRoom(state, roomId) {
   }
   for (const [deviceId, placement] of Object.entries(next.devicePlacements)) {
     if (placement.roomId === roomId) next.devicePlacements[deviceId] = { ...placement, roomId: null };
+  }
+  return next;
+}
+
+export function mergeSpatialRooms(state, primaryRoomId, secondaryRoomIds = []) {
+  const next = createSpatialEditorState(state);
+  if (!primaryRoomId || secondaryRoomIds.length === 0) return next;
+  const existingGroups = { ...next.roomGroups };
+  const allSecondary = [...(existingGroups[primaryRoomId] ?? []), ...secondaryRoomIds];
+  for (const secId of secondaryRoomIds) {
+    if (secId === primaryRoomId) continue;
+    if (existingGroups[secId]) {
+      allSecondary.push(...existingGroups[secId]);
+      delete existingGroups[secId];
+    }
+  }
+  existingGroups[primaryRoomId] = Array.from(new Set(allSecondary.filter((id) => id !== primaryRoomId)));
+  next.roomGroups = existingGroups;
+  for (const secId of existingGroups[primaryRoomId]) {
+    for (const [deviceId, assignedRoomId] of Object.entries(next.deviceAssignments)) {
+      if (assignedRoomId === secId) next.deviceAssignments[deviceId] = primaryRoomId;
+    }
+    for (const [deviceId, placement] of Object.entries(next.devicePlacements)) {
+      if (placement.roomId === secId) next.devicePlacements[deviceId] = { ...placement, roomId: primaryRoomId };
+    }
+  }
+  return next;
+}
+
+export function splitSpatialRoom(state, roomId) {
+  const next = createSpatialEditorState(state);
+  if (!roomId || !next.roomGroups?.[roomId]) return next;
+  const secondaryIds = next.roomGroups[roomId];
+  delete next.roomGroups[roomId];
+  for (const secId of secondaryIds) {
+    const secRoom = next.customRooms.find((r) => r.id === secId);
+    if (secRoom) {
+      if (!next.roomNames[secId]) next.roomNames[secId] = secRoom.name;
+      if (!next.roomRects[secId]) next.roomRects[secId] = secRoom.mapRect;
+    }
   }
   return next;
 }
@@ -435,7 +477,25 @@ function normalizeEditorRooms(sceneRooms, state) {
       deviceCount: 0,
     };
   });
-  return [...baseRooms, ...customRooms];
+  const allRooms = [...baseRooms, ...customRooms];
+
+  // Apply room groups: hide secondary rooms, add allRects to primary rooms
+  const secondaryIds = new Set(Object.values(state.roomGroups ?? {}).flat());
+  const visibleRooms = allRooms.filter((room) => !secondaryIds.has(room.id));
+  const roomById = new globalThis.Map(allRooms.map((room) => [room.id, room]));
+  return visibleRooms.map((room) => {
+    const groupSecondary = state.roomGroups?.[room.id];
+    if (!groupSecondary?.length) return room;
+    const secondaryRects = groupSecondary
+      .map((id) => roomById.get(id))
+      .filter(Boolean)
+      .map((sec) => editorRectToSceneRoom(sec.mapRect, bounds));
+    return {
+      ...room,
+      allRects: [editorRectToSceneRoom(room.mapRect, bounds), ...secondaryRects],
+      mergedCount: groupSecondary.length + 1,
+    };
+  });
 }
 
 function editorPolygonToScenePoints(polygon, bounds) {
@@ -691,6 +751,17 @@ function defaultPolygonPoints() {
     { x: 60, y: 55 },
     { x: 40, y: 55 },
   ];
+}
+
+function normalizeRoomGroups(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const result = {};
+  for (const [key, ids] of Object.entries(value)) {
+    if (!key || !Array.isArray(ids)) continue;
+    const valid = ids.filter((id) => typeof id === "string" && id && id !== key);
+    if (valid.length > 0) result[key] = valid;
+  }
+  return result;
 }
 
 function normalizeCustomRooms(value) {

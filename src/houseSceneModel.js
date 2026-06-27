@@ -354,7 +354,11 @@ function createLifeViewThings(home) {
     })
     .filter(Boolean);
   if (logicalAssets.length === 0) return home.things;
-  return [...home.things.filter((thing) => thing.type !== "switch_panel"), ...logicalAssets];
+  const INFRASTRUCTURE_TYPES = ["hub", "scale"];
+  return [
+    ...home.things.filter((thing) => thing.type !== "switch_panel" && !INFRASTRUCTURE_TYPES.includes(thing.type)),
+    ...logicalAssets,
+  ];
 }
 
 function logicalAssetStatusLabel(thing) {

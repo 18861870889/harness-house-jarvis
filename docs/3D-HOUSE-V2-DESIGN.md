@@ -43,65 +43,44 @@
 
 ## 二、设计方案
 
-### 2.1 Map Editor: 不规则多边形房间
+### 2.1 Map Editor: 矩形聚合/拆分 (替代自由多边形绘制)
 
-#### 数据模型变更
+> 用户反馈：自由绘制多边形自由度太高，不实用。改为选中多个矩形 + 聚合/拆分按钮。
+
+#### 数据模型
 
 ```javascript
-// 现有 (矩形):
-roomRects = { 
-  roomId: { left, top, width, height, centerX, centerY } 
-}
-
-// 新增 (多边形):
-roomPolygons = {
-  roomId: {
-    points: [{x, y}, {x, y}, ...],  // 百分比坐标，顺时针
-    centerX: x,  // 质心，用于设备默认放置
-    centerY: y,
-  }
+// 新增到 spatial editor state:
+roomGroups: {
+  // primaryRoomId: [secondaryRoomId1, secondaryRoomId2, ...]
+  // 被聚合的次要房间不再单独显示，其 mapRect 作为主房间的附加矩形渲染
+  "master": ["master_extra_1", "master_extra_2"],
 }
 ```
 
-**向后兼容**: 有 `roomPolygons` 用多边形，否则回退到 `roomRects`（矩形自动转为 4 点多边形）。
+**向后兼容**: 无 roomGroups 的房间行为不变。有 roomGroups 的房间在 3D 中渲染多个矩形地面，内部墙（同组矩形之间）不渲染。
 
 #### 交互流程
 
-1. 点击「新增房间」→ 选择「多边形」模式
-2. 在地图上点击放置顶点（显示连线预览）
-3. 双击或点击起点 → 闭合多边形
-4. 可拖拽顶点微调
-5. 至少 3 个顶点才能闭合
-
-#### 碰撞检测
-
-```javascript
-// 替换 findSpatialRoomAtPoint 的矩形检测
-function pointInPolygon(points, x, y) {
-  let inside = false;
-  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
-    const xi = points[i].x, yi = points[i].y;
-    const xj = points[j].x, yj = points[j].y;
-    const intersect = ((yi > y) !== (yj > y)) &&
-      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-```
+1. 用户绘制多个矩形房间（现有功能）
+2. 多选：点击房间选中，再点击其他房间追加选中（或 checkbox）
+3. 点击「聚合」→ 第一个选中房间成为主房间，其他房间的 mapRect 并入
+4. 聚合后次要房间从列表消失，主房间显示"聚合 · N 矩形"
+5. 选中聚合房间 → 点击「拆分」→ 恢复为独立房间
 
 #### 3D 渲染
 
 ```javascript
-// 多边形房间用 ExtrudeGeometry
-const shape = new THREE.Shape();
-shape.moveTo(points[0].x, points[0].z);
-for (let i = 1; i < points.length; i++) {
-  shape.lineTo(points[i].x, points[i].z);
+// 多矩形房间：每个 rect 独立渲染地面
+// 内部墙（同组 rect 之间相邻的墙）跳过不渲染
+for (const rect of room.allRects) {
+  renderFloor(rect);
+  for (const edge of rect.edges) {
+    if (!isInternalEdge(edge, room.allRects)) {
+      renderWall(edge);
+    }
+  }
 }
-shape.closePath();
-const floorGeo = new THREE.ShapeGeometry(shape);  // 地面
-const wallGeo = new THREE.ExtrudeGeometry(shape, { depth: WALL_HEIGHT, bevelEnabled: false });
 ```
 
 ### 2.2 3D 视觉升级

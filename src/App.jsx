@@ -37,7 +37,6 @@ import { planCommand } from "./commandPipeline.js";
 import { createHouseSceneModel, getSceneRoomName } from "./houseSceneModel.js";
 import {
   addSpatialRoom,
-  addSpatialPolygonRoom,
   assignSpatialDevice,
   applySpatialEditorToScene,
   applySpatialSuggestion,
@@ -47,15 +46,14 @@ import {
   dismissSpatialSuggestion,
   findSpatialRoomAtPoint,
   hasSpatialEditorEdits,
+  mergeSpatialRooms,
   migrateSpatialEditorStateToImageCoordinates,
   NAMING_MODES,
   placeSpatialDevice,
-  pointInPolygon,
-  polygonCentroid,
   removeSpatialRoom,
+  splitSpatialRoom,
   SPATIAL_DEVICE_STATUS,
   updateSpatialDeviceName,
-  updateSpatialRoomPolygon,
   updateSpatialRoomRect,
   updateSpatialRoomName,
 } from "./spatialHomeEditor.js";
@@ -2053,8 +2051,7 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [activeRoomEditKey, setActiveRoomEditKey] = useState(null);
   const [floorPlanDragActive, setFloorPlanDragActive] = useState(false);
-  const [drawMode, setDrawMode] = useState("rect");
-  const [polygonDraft, setPolygonDraft] = useState([]);
+  const [multiSelectIds, setMultiSelectIds] = useState([]);
   const selectedDevice = useMemo(
     () => (selectedDeviceId ? model.devices.find((device) => device.id === selectedDeviceId) ?? null : null),
     [model.devices, selectedDeviceId],
@@ -2325,111 +2322,34 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
     [state, updateState],
   );
 
-  const finishPolygon = useCallback(
-    (points) => {
-      if (points.length < 3) return;
-      const nextState = addSpatialPolygonRoom(state, { points, name: "新房间" });
-      updateState(nextState);
-      const newRoom = nextState.customRooms[nextState.customRooms.length - 1];
-      if (newRoom?.id) onSelectRoom(newRoom.id);
-      setPolygonDraft([]);
-      setDrawMode("rect");
+  const handleMergeRooms = useCallback(() => {
+    if (multiSelectIds.length < 2) return;
+    const [primaryId, ...rest] = multiSelectIds;
+    updateState(mergeSpatialRooms(state, primaryId, rest));
+    onSelectRoom(primaryId);
+    setMultiSelectIds([]);
+  }, [multiSelectIds, onSelectRoom, state, updateState]);
+
+  const handleSplitRoom = useCallback(
+    (roomId) => {
+      updateState(splitSpatialRoom(state, roomId));
+      setMultiSelectIds([]);
     },
-    [onSelectRoom, state, updateState],
+    [state, updateState],
   );
 
-  const handlePolygonMapClick = useCallback(
-    (event) => {
-      if (drawMode !== "polygon") return;
-      const rect = mapRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const x = ((event.clientX - rect.left) / rect.width) * 100;
-      const y = ((event.clientY - rect.top) / rect.height) * 100;
-      if (polygonDraft.length >= 3) {
-        const first = polygonDraft[0];
-        const dist = Math.hypot(x - first.x, y - first.y);
-        if (dist < 3) {
-          finishPolygon(polygonDraft);
-          return;
-        }
+  const handleRoomClick = useCallback(
+    (roomId, event) => {
+      if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
+        setMultiSelectIds((prev) =>
+          prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]
+        );
+      } else {
+        setMultiSelectIds([roomId]);
+        onSelectRoom(roomId);
       }
-      setPolygonDraft([...polygonDraft, { x, y }]);
     },
-    [drawMode, polygonDraft, finishPolygon],
-  );
-
-  const handlePolygonDoubleClick = useCallback(() => {
-    if (drawMode !== "polygon" || polygonDraft.length < 3) return;
-    finishPolygon(polygonDraft);
-  }, [drawMode, polygonDraft, finishPolygon]);
-
-  const handleCancelDraw = useCallback(() => {
-    setPolygonDraft([]);
-    setDrawMode("rect");
-  }, []);
-
-  const handleToggleDrawMode = useCallback(() => {
-    setDrawMode((prev) => (prev === "polygon" ? "rect" : "polygon"));
-    setPolygonDraft([]);
-  }, []);
-
-  const handleVertexDragStart = useCallback(
-    (event, roomId, vertexIndex) => {
-      if (drawMode === "polygon") return;
-      event.stopPropagation();
-      event.preventDefault();
-      const mapRect = mapRef.current?.getBoundingClientRect();
-      if (!mapRect) return;
-      const room = model.rooms.find((r) => r.id === roomId);
-      if (!room?.polygon) return;
-      activeRoomEditRef.current = {
-        roomId,
-        vertexIndex,
-        mode: "vertex",
-        clientX: event.clientX,
-        clientY: event.clientY,
-        mapWidth: Math.max(1, mapRect.width),
-        mapHeight: Math.max(1, mapRect.height),
-        polygon: room.polygon.map((p) => ({ ...p })),
-      };
-      setActiveRoomEditKey(`${roomId}:vertex:${vertexIndex}`);
-    },
-    [drawMode, model.rooms],
-  );
-
-  useEffect(() => {
-    const handlePointerMove = (event) => {
-      const interaction = activeRoomEditRef.current;
-      if (!interaction || interaction.mode !== "vertex") return;
-      event.preventDefault();
-      const mapRect = mapRef.current?.getBoundingClientRect();
-      if (!mapRect) return;
-      const x = Math.max(0, Math.min(100, Math.round(((event.clientX - mapRect.left) / mapRect.width) * 10000) / 100));
-      const y = Math.max(0, Math.min(100, Math.round(((event.clientY - mapRect.top) / mapRect.height) * 10000) / 100));
-      const polygon = interaction.polygon.map((p, i) =>
-        i === interaction.vertexIndex ? { x, y } : p
-      );
-      updateState(updateSpatialRoomPolygon(stateRef.current, interaction.roomId, polygon));
-    };
-    const handlePointerUp = () => {
-      if (activeRoomEditRef.current?.mode === "vertex") {
-        activeRoomEditRef.current = null;
-        setActiveRoomEditKey(null);
-      }
-    };
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
-    window.addEventListener("pointercancel", handlePointerUp);
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("pointercancel", handlePointerUp);
-    };
-  }, [updateState]);
-
-  const polygonRooms = useMemo(
-    () => model.rooms.filter((room) => room.polygon && room.polygon.length >= 3),
-    [model.rooms],
+    [onSelectRoom],
   );
 
   const markers = useMemo(() => {
@@ -2468,17 +2388,15 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
             <button className="mini-icon-button" type="button" onClick={handleAddRoom} title="新增矩形房间">
               <Plus size={13} />
             </button>
-            <button
-              className={`mini-icon-button ${drawMode === "polygon" ? "active" : ""}`}
-              type="button"
-              onClick={handleToggleDrawMode}
-              title={drawMode === "polygon" ? "退出多边形绘制" : "多边形绘制模式"}
-            >
-              <Pencil size={13} />
-            </button>
-            {drawMode === "polygon" && (
-              <button className="mini-icon-button" type="button" onClick={handleCancelDraw} title="取消绘制">
-                <X size={13} />
+            {multiSelectIds.length >= 2 && (
+              <button
+                className="mini-icon-button merge-btn"
+                type="button"
+                onClick={handleMergeRooms}
+                title={`聚合 ${multiSelectIds.length} 个房间`}
+              >
+                <Layers3 size={13} />
+                <span>聚合</span>
               </button>
             )}
           </>
@@ -2546,8 +2464,10 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                 className={[
                   "spatial-room-zone",
                   room.id === selectedRoomId ? "selected" : "",
+                  multiSelectIds.includes(room.id) ? "multi-selected" : "",
                   activeRoomEditKey?.startsWith(`${room.id}:`) ? "editing" : "",
                   room.spatialSource === "editor" ? "customized" : "",
+                  room.mergedCount ? "merged" : "",
                 ].filter(Boolean).join(" ")}
                 key={room.id}
                 type="button"
@@ -2557,13 +2477,13 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                   width: `${room.mapRect.width}%`,
                   height: `${room.mapRect.height}%`,
                 } : undefined}
-                onClick={() => onSelectRoom(room.id)}
+                onClick={(event) => handleRoomClick(room.id, event)}
                 onPointerDown={(event) => handleRoomPointerDown(event, room, "move")}
                 onDragOver={handleMapDragOver}
                 onDrop={(event) => handleDrop(event, room.id)}
                 title={room.editorName}
               >
-                <span>{room.editorName}</span>
+                <span>{room.editorName}{room.mergedCount ? ` · ${room.mergedCount}矩形` : ""}</span>
                 {workspace && (
                   <span
                     className="room-resize-handle"
@@ -2592,73 +2512,6 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                 <LocateFixed size={12} />
               </button>
             ))}
-            <svg
-              className={`spatial-polygon-overlay ${drawMode === "polygon" ? "drawing" : ""}`}
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              onClick={handlePolygonMapClick}
-              onDoubleClick={handlePolygonDoubleClick}
-            >
-              {polygonRooms.map((room) => {
-                const pts = room.polygon.map((p) => `${p.x},${p.y}`).join(" ");
-                const isSelected = room.id === selectedRoomId;
-                return (
-                  <polygon
-                    key={room.id}
-                    points={pts}
-                    className={`spatial-polygon-room ${isSelected ? "selected" : ""}`}
-                    onClick={(e) => { e.stopPropagation(); onSelectRoom(room.id); }}
-                  />
-                );
-              })}
-              {polygonRooms
-                .filter((room) => room.id === selectedRoomId && drawMode !== "polygon")
-                .flatMap((room) =>
-                  room.polygon.map((vertex, index) => (
-                    <circle
-                      key={`${room.id}-v${index}`}
-                      cx={vertex.x}
-                      cy={vertex.y}
-                      r="1.2"
-                      className="spatial-polygon-vertex-editable"
-                      onPointerDown={(e) => handleVertexDragStart(e, room.id, index)}
-                    />
-                  )),
-                )}
-              {polygonDraft.length > 0 && (
-                <>
-                  <polyline
-                    points={polygonDraft.map((p) => `${p.x},${p.y}`).join(" ")}
-                    className="spatial-polygon-draft-line"
-                  />
-                  {polygonDraft.length >= 3 && (
-                    <line
-                      x1={polygonDraft[polygonDraft.length - 1].x}
-                      y1={polygonDraft[polygonDraft.length - 1].y}
-                      x2={polygonDraft[0].x}
-                      y2={polygonDraft[0].y}
-                      className="spatial-polygon-draft-close"
-                    />
-                  )}
-                  {polygonDraft.map((p, i) => (
-                    <circle
-                      key={i}
-                      cx={p.x}
-                      cy={p.y}
-                      r="0.8"
-                      className={`spatial-polygon-vertex ${i === 0 && polygonDraft.length >= 3 ? "closeable" : ""}`}
-                    />
-                  ))}
-                </>
-              )}
-            </svg>
-            {drawMode === "polygon" && (
-              <div className="spatial-draw-hint">
-                {polygonDraft.length < 3
-                  ? `点击放置顶点 (${polygonDraft.length}/3+) · 双击或点击起点闭合`
-                  : `${polygonDraft.length} 个顶点 · 点击起点或双击闭合`}
-              </div>
-            )}
           </div>
         </div>
 
@@ -2679,7 +2532,7 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
             room={selectedRoom}
             onRename={(roomId, value) => updateState(updateSpatialRoomName(state, roomId, value))}
             onRectChange={handleRoomRectInput}
-            onPolygonChange={(roomId, points) => updateState(updateSpatialRoomPolygon(state, roomId, points))}
+            onSplit={handleSplitRoom}
             onRemove={handleRemoveRoom}
           />
 
@@ -2740,16 +2593,15 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
   );
 }
 
-function SpatialRoomDetail({ room, onRename, onRectChange, onPolygonChange, onRemove }) {
+function SpatialRoomDetail({ room, onRename, onRectChange, onSplit, onRemove }) {
   if (!room) return null;
   const rect = room.mapRect ?? { left: 0, top: 0, width: 10, height: 10 };
-  const isPolygon = Array.isArray(room.polygon) && room.polygon.length >= 3;
   return (
     <div className="spatial-room-detail">
       <div className="spatial-room-detail-header">
         <Home size={13} />
         <strong>{room.editorName}</strong>
-        <span>{room.custom ? (isPolygon ? "多边形" : "自定义") : room.spatialSource === "editor" ? "已校准" : "系统"}</span>
+        <span>{room.mergedCount ? `聚合 · ${room.mergedCount}矩形` : room.custom ? "自定义" : room.spatialSource === "editor" ? "已校准" : "系统"}</span>
       </div>
       <div className="spatial-detail-grid">
         <label>
@@ -2761,77 +2613,42 @@ function SpatialRoomDetail({ room, onRename, onRectChange, onPolygonChange, onRe
           <input value={room.type ?? "generic"} readOnly />
         </label>
       </div>
-      {isPolygon ? (
-        <div className="spatial-polygon-vertices">
-          <div className="spatial-polygon-vertices-title">
-            <span>顶点</span>
-            <strong>{room.polygon.length}</strong>
-          </div>
-          {room.polygon.map((vertex, index) => (
-            <div className="spatial-vertex-row" key={index}>
-              <span className="spatial-vertex-index">{index + 1}</span>
-              <label>
-                <span>X</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.5}
-                  value={vertex.x}
-                  onChange={(event) => {
-                    const points = room.polygon.map((p, i) =>
-                      i === index ? { ...p, x: Number(event.target.value) } : p
-                    );
-                    onPolygonChange(room.id, points);
-                  }}
-                />
-              </label>
-              <label>
-                <span>Y</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.5}
-                  value={vertex.y}
-                  onChange={(event) => {
-                    const points = room.polygon.map((p, i) =>
-                      i === index ? { ...p, y: Number(event.target.value) } : p
-                    );
-                    onPolygonChange(room.id, points);
-                  }}
-                />
-              </label>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="spatial-rect-grid">
-          {[
-            ["left", "X"],
-            ["top", "Y"],
-            ["width", "W"],
-            ["height", "H"],
-          ].map(([key, label]) => (
-            <label key={key}>
-              <span>{label}</span>
-              <input
-                type="number"
-                min={key === "width" || key === "height" ? 4 : 0}
-                max={100}
-                step={0.5}
-                value={rect[key]}
-                onChange={(event) => onRectChange(room.id, key, event.target.value)}
-              />
-            </label>
-          ))}
-        </div>
-      )}
-      <div className="spatial-detail-actions single-action">
+      <div className="spatial-rect-grid">
+        {[
+          ["left", "X"],
+          ["top", "Y"],
+          ["width", "W"],
+          ["height", "H"],
+        ].map(([key, label]) => (
+          <label key={key}>
+            <span>{label}</span>
+            <input
+              type="number"
+              min={key === "width" || key === "height" ? 4 : 0}
+              max={100}
+              step={0.5}
+              value={rect[key]}
+              onChange={(event) => onRectChange(room.id, key, event.target.value)}
+            />
+          </label>
+        ))}
+      </div>
+      <div className="spatial-detail-actions">
+        {room.mergedCount && (
+          <button type="button" onClick={() => onSplit(room.id)}>
+            <Layers3 size={12} />
+            拆分
+          </button>
+        )}
         <button type="button" onClick={() => onRemove(room.id)} disabled={!room.custom}>
           <Trash2 size={12} />
-          删除房间
+          删除
         </button>
+      </div>
+      <div className="spatial-merge-hint">
+        {room.mergedCount
+          ? `聚合房间 · ${room.mergedCount} 个矩形 · 点击"拆分"恢复`
+          : "提示：Shift+点击多个房间后可聚合"}
       </div>
     </div>
   );
