@@ -132,7 +132,8 @@ describe("spatial home editor", () => {
           role: "logical_asset",
           assignedRoomId: "dining",
           providerThingId: "entry_switch_1",
-          spatialStatus: SPATIAL_DEVICE_STATUS.ASSIGNED_UNPLACED,
+          spatialStatus: SPATIAL_DEVICE_STATUS.ASSIGNED_PLACED,
+          placement: expect.objectContaining({ auto: true, placed: true }),
         }),
         expect.objectContaining({
           id: "entry_switch_1",
@@ -143,7 +144,7 @@ describe("spatial home editor", () => {
         }),
       ]),
     );
-    expect(model.groups[SPATIAL_DEVICE_STATUS.ASSIGNED_UNPLACED].length).toBe(3);
+    expect(model.groups[SPATIAL_DEVICE_STATUS.ASSIGNED_PLACED].length).toBe(2);
   });
 
   it("moves a device through placement and assignment states without provider writes", () => {
@@ -174,7 +175,11 @@ describe("spatial home editor", () => {
 
     state = clearSpatialPlacement(state, "desk_light");
     model = createSpatialEditorModel({ sceneModel, state });
-    expect(model.devices[0].spatialStatus).toBe(SPATIAL_DEVICE_STATUS.ASSIGNED_UNPLACED);
+    expect(model.devices[0]).toMatchObject({
+      assignedRoomId: "study",
+      spatialStatus: SPATIAL_DEVICE_STATUS.ASSIGNED_PLACED,
+    });
+    expect(model.devices[0].placement?.auto).toBe(true);
   });
 
   it("uses edited room rectangles for placement suggestions and 3D projection", () => {
@@ -195,14 +200,14 @@ describe("spatial home editor", () => {
 
     const model = createSpatialEditorModel({ sceneModel, state });
     const study = model.rooms.find((room) => room.id === "study");
-    const suggestion = model.suggestions.find((item) => item.deviceId === "desk_light");
+    const device = model.devices.find((d) => d.id === "desk_light");
     const projected = applySpatialEditorToScene(sceneModel, model);
 
     expect(study).toMatchObject({
       mapRect: { left: 50, top: 25, width: 30, height: 20, centerX: 65, centerY: 35 },
       spatialSource: "editor",
     });
-    expect(suggestion.patch.placement).toMatchObject({ x: 65, y: 35 });
+    expect(device.placement).toMatchObject({ auto: true, placed: true, x: 65, y: 35 });
     expect(projected.rooms.find((room) => room.id === "study")).toMatchObject({
       x: 2.9,
       z: -0.3,
@@ -267,31 +272,33 @@ describe("spatial home editor", () => {
     expect(model.devices[0].displayName).toBe("餐区射灯");
   });
 
-  it("generates explainable placement suggestions that can be accepted or dismissed locally", () => {
+  it("auto-places assigned devices and supports suggestion dismissal", () => {
     const hcmHome = createSwitchControlledHome();
     const sceneModel = createHouseSceneModel({ hcmHome });
     let state = createSpatialEditorState();
     let model = createSpatialEditorModel({ hcmHome, sceneModel, state });
-    const suggestion = model.suggestions.find((item) => item.deviceName.includes("餐厅射灯"));
 
-    expect(suggestion).toMatchObject({
-      type: "place_assigned_device",
-      roomId: "dining",
-      patch: { assignmentRoomId: "dining" },
-    });
-    expect(suggestion.patch.placement.x).toBeGreaterThan(0);
-
-    state = applySpatialSuggestion(state, suggestion);
-    model = createSpatialEditorModel({ hcmHome, sceneModel, state });
-    expect(model.devices.find((device) => device.id === suggestion.deviceId)).toMatchObject({
+    // Auto-place: assigned devices are placed at room center automatically
+    const asset = model.devices.find((d) => d.role === "logical_asset");
+    expect(asset).toMatchObject({
       spatialStatus: SPATIAL_DEVICE_STATUS.ASSIGNED_PLACED,
-      placement: { placed: true, roomId: "dining" },
+      placement: expect.objectContaining({ auto: true, placed: true }),
     });
 
-    const nextSuggestion = model.suggestions[0];
-    state = dismissSpatialSuggestion(state, nextSuggestion.id);
+    // Explicit placement overrides auto-place
+    state = placeSpatialDevice(state, asset.id, { x: 80, y: 20, roomId: asset.assignedRoomId });
     model = createSpatialEditorModel({ hcmHome, sceneModel, state });
-    expect(model.suggestions.some((item) => item.id === nextSuggestion.id)).toBe(false);
+    const updated = model.devices.find((d) => d.id === asset.id);
+    expect(updated.placement).toMatchObject({ placed: true, x: 80, y: 20 });
+    expect(updated.placement?.auto).toBeFalsy();
+
+    // Suggestions can be dismissed
+    if (model.suggestions.length > 0) {
+      const suggestionId = model.suggestions[0].id;
+      state = dismissSpatialSuggestion(state, suggestionId);
+      model = createSpatialEditorModel({ hcmHome, sceneModel, state });
+      expect(model.suggestions.some((item) => item.id === suggestionId)).toBe(false);
+    }
   });
 
   it("projects accepted spatial edits into the 3D scene without changing provider data", () => {

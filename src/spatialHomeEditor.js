@@ -246,7 +246,7 @@ export function composeSpatialDeviceName(device, roomName, state) {
     editorState.namingMode === NAMING_MODES.ROOM_CUSTOM
       ? editorState.customDeviceNames[device.id] || stripRoomPrefix(device.name, roomName)
       : stripRoomPrefix(device.name, roomName);
-  return baseName;
+  return roomName ? roomName + baseName : baseName;
 }
 
 export function applySpatialEditorToScene(sceneModel, spatialModel) {
