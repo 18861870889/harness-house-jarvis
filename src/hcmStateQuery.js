@@ -1,16 +1,4 @@
-const ROOM_ALIASES = [
-  ["entry", ["玄关", "入户", "门口"]],
-  ["living", ["客厅", "大厅", "沙发"]],
-  ["dining", ["餐厅"]],
-  ["kitchen", ["厨房"]],
-  ["study", ["书房"]],
-  ["master", ["主卧", "卧室"]],
-  ["second", ["次卧", "小孩房", "儿童房"]],
-  ["cat_room", ["猫猫房", "猫房"]],
-  ["bath", ["公共卫生间", "公卫", "浴室", "洗手台"]],
-  ["master_bath", ["主卧卫生间", "主卫"]],
-  ["balcony", ["阳台"]],
-];
+import { ROOM_ALIASES } from "./roomAliases.js";
 
 const TYPE_PATTERNS = [
   ["motion_sensor", /人体|移动|motion/],

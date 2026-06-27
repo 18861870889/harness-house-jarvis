@@ -1,0 +1,333 @@
+{
+  "api_endpoint": "http://localhost:5173/api/hcm/command",
+  "rooms": {
+    "living": {
+      "room_name": "客厅",
+      "devices": [
+        {
+          "switch_name": "Aqara 妙控开关 S1E",
+          "switch_id": "ha_942b91cafb963f8d4979dce6525f33fc",
+          "lights": [
+            "过道灯带",
+            "餐厅吊灯"
+          ]
+        },
+        {
+          "switch_name": "沙发右侧一号开关",
+          "switch_id": "ha_663e8c7962525873a5e8f0ea4b0c29ff",
+          "lights": [
+            "客厅八筒灯",
+            "客厅灯带",
+            "客厅主射灯"
+          ]
+        },
+        {
+          "switch_name": "入户四号开关（左键未绑定",
+          "switch_id": "ha_5796189f645fafff8ac59f60217a0a4e",
+          "lights": [
+            "客厅中间射灯",
+            "过道射灯2"
+          ]
+        },
+        {
+          "switch_name": "客厅空调",
+          "switch_id": "ha_70e1a06e46d08f8118641612331ccd94",
+          "lights": [
+            "智能场景"
+          ]
+        }
+      ]
+    },
+    "balcony": {
+      "room_name": "阳台",
+      "devices": [
+        {
+          "switch_name": "阳台开关",
+          "switch_id": "ha_28caeba291a73e16881094225ebcc00c",
+          "lights": [
+            "阳台洗手台灯带",
+            "xx",
+            "阳台射灯"
+          ]
+        }
+      ]
+    },
+    "study": {
+      "room_name": "书房",
+      "devices": [
+        {
+          "switch_name": "书房开关（右键未绑定",
+          "switch_id": "ha_26652a7da3cffddcf8b53690cddadd56",
+          "lights": [
+            "书房吊灯",
+            "书房射灯"
+          ]
+        },
+        {
+          "switch_name": "书房空调",
+          "switch_id": "ha_282e53646a8e2d6d21a1be1d733a8abd",
+          "lights": [
+            "智能场景"
+          ]
+        }
+      ]
+    },
+    "dining": {
+      "room_name": "餐厅",
+      "devices": [
+        {
+          "switch_name": "入户1号开关",
+          "switch_id": "ha_253c8dbbbfa15c57542db0cd98d0a8a2",
+          "lights": [
+            "餐厅射灯",
+            "餐边柜灯带"
+          ]
+        },
+        {
+          "switch_name": "餐厅空调",
+          "switch_id": "ha_32a0d4390352e681f58b07eab78e7744",
+          "lights": [
+            "智能场景"
+          ]
+        }
+      ]
+    },
+    "master": {
+      "room_name": "主卧",
+      "devices": [
+        {
+          "switch_name": "主卧左开关",
+          "switch_id": "ha_b207e9d5c3488757e48ee2df7532a75b",
+          "lights": [
+            "主卧左射灯",
+            "主卧灯带",
+            "主卧床尾灯（伪）"
+          ]
+        },
+        {
+          "switch_name": "卧室右开关",
+          "switch_id": "ha_15c7915087d9aaaf7563ce1eab32624f",
+          "lights": [
+            "主卧主灯",
+            "主卧右射灯",
+            "主卧床尾射灯"
+          ]
+        },
+        {
+          "switch_name": "主卧入户开关",
+          "switch_id": "ha_f77fecd3b5286bb4e5ce9023e4d3265c",
+          "lights": [
+            "主卧入户开关",
+            "绑定（过道射灯2）",
+            "绑定（主卧吸顶灯"
+          ]
+        },
+        {
+          "switch_name": "风扇",
+          "switch_id": "ha_0990777d971f34d87268339b37ab17c0",
+          "lights": [
+            "风扇"
+          ]
+        },
+        {
+          "switch_name": "主卧空调",
+          "switch_id": "ha_6933662a93c9484835d66ef9d7dc5113",
+          "lights": [
+            "智能场景"
+          ]
+        }
+      ]
+    },
+    "bath": {
+      "room_name": "公共卫生间",
+      "devices": [
+        {
+          "switch_name": "外洗手台开关",
+          "switch_id": "ha_38bd17389ee300e78b8bfec6272128cf",
+          "lights": [
+            "外洗手台灯带",
+            "外洗手台射灯"
+          ]
+        },
+        {
+          "switch_name": "公卫开关",
+          "switch_id": "ha_d6eab1ef3b7738eb3d5161156aa49531",
+          "lights": [
+            "公卫灯带",
+            "公卫射灯"
+          ]
+        }
+      ]
+    },
+    "master_bath": {
+      "room_name": "主卧卫生间",
+      "devices": [
+        {
+          "switch_name": "主卫开关",
+          "switch_id": "ha_4991d9a2a103d4c4c9328c2d5aaddea7",
+          "lights": [
+            "主卫射灯",
+            "主卫灯带",
+            "主卫智能镜"
+          ]
+        }
+      ]
+    },
+    "kitchen": {
+      "room_name": "厨房",
+      "devices": [
+        {
+          "switch_name": "入户2号开关",
+          "switch_id": "ha_d0480d2b37af3623e0957f9d76e9b6e8",
+          "lights": [
+            "厨房射灯",
+            "厨房灯带"
+          ]
+        }
+      ]
+    },
+    "second": {
+      "room_name": "次卧",
+      "devices": [
+        {
+          "switch_name": "次卧右2开关",
+          "switch_id": "ha_9d4e334be2d63d759c7a55be153f6396",
+          "lights": [
+            "开关"
+          ]
+        },
+        {
+          "switch_name": "次卧右开关（右键未绑定",
+          "switch_id": "ha_7abb431610fbeb576c3a3ca42deb20f7",
+          "lights": [
+            "次卧床尾射灯",
+            "次卧床头右射灯"
+          ]
+        },
+        {
+          "switch_name": "次卧左开关（左右键未绑定",
+          "switch_id": "ha_ad4203a221c88719bc57858baaccc003",
+          "lights": [
+            "次卧床头左射灯"
+          ]
+        },
+        {
+          "switch_name": "次卧入户开关（右键未绑定",
+          "switch_id": "ha_0a0249305c11e6ce1161c72c44b39208",
+          "lights": [
+            "次卧入户射灯",
+            "次卧吸顶灯"
+          ]
+        }
+      ]
+    },
+    "cat_room": {
+      "room_name": "猫猫房",
+      "devices": [
+        {
+          "switch_name": "小孩房入户开关（无直连",
+          "switch_id": "ha_a6d5c4867d973c5c3d48196d18297d13",
+          "lights": [
+            "床尾射灯",
+            "吸顶灯"
+          ]
+        },
+        {
+          "switch_name": "小孩房右开关（右键未绑定",
+          "switch_id": "ha_4837416d892134489c2ba08ee14d73ec",
+          "lights": [
+            "小孩房床位射灯"
+          ]
+        },
+        {
+          "switch_name": "小孩房左开关",
+          "switch_id": "ha_4fd6b33697ff91219004b1138bd1db3d",
+          "lights": [
+            "小孩房吸顶灯",
+            "小孩房床头射灯"
+          ]
+        },
+        {
+          "switch_name": "风扇",
+          "switch_id": "ha_cabf56aede235db29c8bcdf4788f73a6",
+          "lights": [
+            "风扇"
+          ]
+        },
+        {
+          "switch_name": "小房间空调",
+          "switch_id": "ha_b595ab34008a79dff89e11c26e43af37",
+          "lights": [
+            "智能场景"
+          ]
+        }
+      ]
+    },
+    "entry": {
+      "room_name": "入户",
+      "devices": [
+        {
+          "switch_name": "入户三号开关",
+          "switch_id": "ha_238810779a9fb8c233e2f62713f973a5",
+          "lights": [
+            "过道射灯1",
+            "入户灯带",
+            "入户灯"
+          ]
+        }
+      ]
+    }
+  },
+  "room_aliases": {
+    "master": [
+      "主卧",
+      "卧室",
+      "主人房",
+      "大卧室"
+    ],
+    "master_bath": [
+      "主卧卫生间",
+      "主卫",
+      "主卧厕所",
+      "主卧洗手间"
+    ],
+    "bath": [
+      "公共卫生间",
+      "公卫",
+      "浴室",
+      "公共厕所",
+      "客卫"
+    ],
+    "living": [
+      "客厅",
+      "大厅"
+    ],
+    "kitchen": [
+      "厨房"
+    ],
+    "dining": [
+      "餐厅"
+    ],
+    "study": [
+      "书房"
+    ],
+    "second": [
+      "次卧",
+      "二卧"
+    ],
+    "cat_room": [
+      "猫猫房",
+      "猫房",
+      "小孩房"
+    ],
+    "balcony": [
+      "阳台"
+    ],
+    "entry": [
+      "玄关",
+      "入户",
+      "门口",
+      "门厅"
+    ]
+  }
+}

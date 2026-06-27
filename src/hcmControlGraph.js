@@ -1,4 +1,5 @@
 import { CAPABILITY_KINDS, stableId } from "./hcm.js";
+import { getRoomAliasMap } from "./roomAliases.js";
 
 export const HCM_CONTROL_GRAPH_VERSION = "0.1";
 
@@ -185,9 +186,11 @@ export function findExplicitRoomIds(input, home) {
   for (const [roomId, pattern] of ROOM_PATTERNS) {
     if (pattern.test(text)) ids.push(roomId);
   }
-  for (const space of home?.spaces ?? []) {
-    const labels = [space.name, space.id, ...(space.aliases ?? [])].map(normalizeText).filter(Boolean);
-    if (labels.some((label) => text.includes(label))) ids.push(space.id);
+  // Use shared alias map (includes space names + ROOM_ALIASES)
+  const aliasMap = getRoomAliasMap(home);
+  for (const [roomId, labels] of aliasMap) {
+    const normalizedLabels = labels.map(normalizeText).filter(Boolean);
+    if (normalizedLabels.some((label) => text.includes(label))) ids.push(roomId);
   }
   return Array.from(new Set(ids));
 }

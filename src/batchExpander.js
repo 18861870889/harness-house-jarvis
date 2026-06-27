@@ -31,6 +31,15 @@
 
 import { getHcmControlGraph } from "./hcmControlGraph.js";
 import { findExplicitRoomIds } from "./hcmControlGraph.js";
+import { ROOM_ALIASES, getRoomAliasMap } from "./roomAliases.js";
+
+/**
+ * Build a room alias map from ROOM_ALIASES for use in resolveRoomIds.
+ * Returns: Map<roomId, string[]> including name + all aliases.
+ */
+function buildRoomAliasMap(home) {
+  return getRoomAliasMap(home);
+}
 
 /**
  * Expand batch actions in a planner draft.
@@ -108,16 +117,35 @@ export function expandBatchActions(draft, home, input = "") {
  * Tries: direct name match → aliases → input text room patterns.
  */
 function resolveRoomIds(roomName, input, home) {
-  // 1. Direct match against space names/aliases
   const normalized = roomName.trim();
-  const direct = (home?.spaces ?? [])
-    .filter((space) => {
-      const labels = [space.name, space.id, ...(space.aliases ?? [])].filter(Boolean);
-      return labels.some((label) => label === normalized || label.includes(normalized) || normalized.includes(label));
-    })
-    .map((space) => space.id);
+  const aliasMap = buildRoomAliasMap(home);
 
-  if (direct.length > 0) return Array.from(new Set(direct));
+  // 1a. Exact match (highest priority)
+  const exact = [];
+  for (const [roomId, labels] of aliasMap) {
+    if (labels.some((label) => label === normalized)) exact.push(roomId);
+  }
+  if (exact.length > 0) return Array.from(new Set(exact));
+
+  // 1b. Label contains query (e.g. "主卧卫生间" contains "主卧卫生")
+  const labelContains = [];
+  for (const [roomId, labels] of aliasMap) {
+    if (labels.some((label) => label.includes(normalized))) labelContains.push(roomId);
+  }
+  if (labelContains.length > 0) return Array.from(new Set(labelContains));
+
+  // 1c. Query contains label — pick the LONGEST matching label (most specific)
+  const queryContains = [];
+  for (const [roomId, labels] of aliasMap) {
+    const matchLabel = labels.find((label) => normalized.includes(label));
+    if (matchLabel) queryContains.push({ id: roomId, matchLen: matchLabel.length });
+  }
+  if (queryContains.length > 0) {
+    queryContains.sort((a, b) => b.matchLen - a.matchLen);
+    const maxLen = queryContains[0].matchLen;
+    const best = queryContains.filter((x) => x.matchLen === maxLen).map((x) => x.id);
+    return Array.from(new Set(best));
+  }
 
   // 2. Use findExplicitRoomIds on the room name + input
   const fromInput = findExplicitRoomIds(`${roomName} ${input}`, home);
