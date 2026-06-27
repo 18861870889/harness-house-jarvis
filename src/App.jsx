@@ -1640,34 +1640,111 @@ function HomeModelWorkspace({
             </div>
             {selectedThing ? (
               <div className="model-detail-form">
-                <label>
-                  <span>显示名称</span>
-                  <input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
-                </label>
-                <label>
-                  <span>房间</span>
-                  <select value={draft.spaceId} onChange={(event) => setDraft((current) => ({ ...current, spaceId: event.target.value }))}>
-                    <option value="">未分区</option>
-                    {(home.spaces ?? []).map((space) => (
-                      <option value={space.id} key={space.id}>
-                        {space.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>别名</span>
-                  <input
-                    value={draft.aliases}
-                    onChange={(event) => setDraft((current) => ({ ...current, aliases: event.target.value }))}
-                    placeholder="用顿号或逗号分隔"
-                  />
-                </label>
-                <div className="model-detail-meta">
-                  <span>能力 {selectedThing.capabilities?.length ?? 0}</span>
-                  <span>可自动 {selectedThing.state?.autoExecutable ?? 0}</span>
-                  <span>只读 {selectedThing.state?.readable ?? 0}</span>
+                {/* ── 编辑区 ── */}
+                <div className="detail-edit-group">
+                  <label>
+                    <span>显示名称</span>
+                    <input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+                  </label>
+                  <label>
+                    <span>房间</span>
+                    <select value={draft.spaceId} onChange={(event) => setDraft((current) => ({ ...current, spaceId: event.target.value }))}>
+                      <option value="">未分区</option>
+                      {(home.spaces ?? []).map((space) => (
+                        <option value={space.id} key={space.id}>
+                          {space.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>别名</span>
+                    <input
+                      value={draft.aliases}
+                      onChange={(event) => setDraft((current) => ({ ...current, aliases: event.target.value }))}
+                      placeholder="用顿号或逗号分隔"
+                    />
+                  </label>
                 </div>
+
+                {/* ── 设备来源信息 ── */}
+                <div className="detail-source-info">
+                  <div className="detail-source-row">
+                    <span className="detail-label">来源</span>
+                    <span className="detail-value">{selectedThing.provider?.name ?? selectedThing.provider?.id ?? "未知"}</span>
+                  </div>
+                  <div className="detail-source-row">
+                    <span className="detail-label">设备ID</span>
+                    <span className="detail-value mono">{selectedThing.id}</span>
+                  </div>
+                  <div className="detail-source-row">
+                    <span className="detail-label">类型</span>
+                    <span className="detail-value">{selectedThing.type}</span>
+                  </div>
+                  <div className="detail-source-row">
+                    <span className="detail-label">在线状态</span>
+                    <span className={`detail-value ${selectedThing.online === false ? "offline" : "online"}`}>
+                      {selectedThing.online === false ? "离线" : "在线"}
+                    </span>
+                  </div>
+                  <div className="detail-source-row">
+                    <span className="detail-label">整体风险</span>
+                    <span className={`detail-value risk-badge risk-${selectedThing.policy?.risk ?? "low"}`}>
+                      {RISK_LABELS[selectedThing.policy?.risk ?? "low"] ?? selectedThing.policy?.risk}
+                    </span>
+                  </div>
+                  {selectedThing.policy?.reason && (
+                    <div className="detail-source-row">
+                      <span className="detail-label">风险原因</span>
+                      <span className="detail-value">{selectedThing.policy.reason}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── 能力列表 ── */}
+                <div className="detail-capability-section">
+                  <div className="detail-section-header">
+                    <span>能力清单</span>
+                    <strong>{selectedThing.capabilities?.length ?? 0} 项</strong>
+                  </div>
+                  <div className="detail-capability-list">
+                    {(selectedThing.capabilities ?? []).map((cap) => {
+                      const isBound = Boolean(cap.binding?.entityId);
+                      const hasOverlay = Boolean(cap.policy?.overlayDecision);
+                      return (
+                        <div key={cap.id ?? cap.name} className={`detail-cap-row risk-${cap.policy?.risk ?? "low"} ${hasOverlay ? "has-overlay" : ""}`}>
+                          <div className="detail-cap-header">
+                            <span className="detail-cap-name">{cap.name}</span>
+                            <span className={`detail-cap-risk risk-mini risk-${cap.policy?.risk ?? "low"}`}>
+                              {RISK_LABELS[cap.policy?.risk ?? "low"] ?? cap.policy?.risk}
+                            </span>
+                          </div>
+                          <div className="detail-cap-meta">
+                            <span>{cap.kind ?? "unknown"}</span>
+                            <span className={`policy-tag ${cap.policy?.autoExecutable ? "auto" : cap.policy?.confirmation === "always" ? "protected" : "review"}`}>
+                              {cap.policy?.autoExecutable ? "可自动" : cap.policy?.confirmation === "always" ? "已保护" : "需审核"}
+                            </span>
+                            {isBound ? (
+                              <span className="binding-info" title={cap.binding.entityId}>
+                                {cap.binding.domain ?? ""} · {cap.binding.entityId ?? ""}
+                              </span>
+                            ) : (
+                              <span className="binding-info unbound">未绑定</span>
+                            )}
+                          </div>
+                          {hasOverlay && (
+                            <div className="detail-cap-overlay">
+                              <span>手动覆盖: {cap.policy.overlayDecision}</span>
+                              {cap.policy.overlayUpdatedAt && <small>{new Date(cap.policy.overlayUpdatedAt).toLocaleString("zh-CN")}</small>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── 保存 ── */}
                 {saveError && <p className="hcm-error">{saveError}</p>}
                 <button className="model-save-button" type="button" disabled={Boolean(savingThingId)} onClick={saveThingOverlay}>
                   <Check size={14} />
@@ -1688,6 +1765,9 @@ function HomeModelWorkspace({
               hiddenThingIds={home.overlay?.reviewHiddenThingIds}
               onHideThing={onHideThing}
               actionId={reviewActionId}
+              things={home.things}
+              roomNameById={roomNameById}
+              onSelectThing={setSelectedThingId}
             />
           </section>
 
@@ -2613,7 +2693,7 @@ function SpatialDeviceDetail({ device, rooms, state, onAssign, onRename, onClear
   );
 }
 
-function BindingReview({ review, reviewSurfaceCount, hiddenThingIds = [], onHideThing, actionId }) {
+function BindingReview({ review, reviewSurfaceCount, hiddenThingIds = [], onHideThing, actionId, things = [], roomNameById, onSelectThing }) {
   if (!review || review.total === 0) return null;
   const recommendations = {
     ...(review.recommendations ?? { totalDevices: 0, bySeverity: {}, devices: [] }),
@@ -2651,6 +2731,9 @@ function BindingReview({ review, reviewSurfaceCount, hiddenThingIds = [], onHide
         recommendations={recommendations}
         onHideThing={onHideThing}
         actionId={actionId}
+        things={things}
+        roomNameById={roomNameById}
+        onSelectThing={onSelectThing}
       />
     </div>
   );
@@ -2663,10 +2746,12 @@ function severityRank(severity) {
   return 0;
 }
 
-function AdjustmentRecommendations({ recommendations, onHideThing, actionId }) {
+function AdjustmentRecommendations({ recommendations, onHideThing, actionId, things = [], roomNameById, onSelectThing }) {
   const hiddenThingIds = new Set(recommendations?.hiddenThingIds ?? []);
   const devices = (recommendations?.devices ?? []).filter((device) => !hiddenThingIds.has(device.thingId));
   if (devices.length === 0) return null;
+
+  const thingMap = new Map(things.map((t) => [t.id, t]));
 
   return (
     <div className="adjustment-recommendations">
@@ -2674,22 +2759,39 @@ function AdjustmentRecommendations({ recommendations, onHideThing, actionId }) {
         <span>建议调整</span>
         <strong>{devices.length}</strong>
       </div>
-      {devices.slice(0, 4).map((device) => (
-        <div className={`recommendation-item severity-${device.severity}`} key={device.thingId || device.thingName}>
-          <span>{device.thingName}</span>
-          <strong>{device.count}</strong>
-          <small>{device.action}</small>
-          <button
-            type="button"
-            disabled={Boolean(actionId)}
-            onClick={() => onHideThing(device.thingId)}
-            title="仅从建议调整清单隐藏，不影响地图和设备模型"
+      {devices.slice(0, 6).map((device) => {
+        const thing = thingMap.get(device.thingId);
+        const roomName = thing ? (roomNameById?.get(thing.spaceId) ?? thing.spaceId ?? "未分区") : "";
+        return (
+          <div
+            className={`recommendation-item severity-${device.severity} ${onSelectThing ? "clickable" : ""}`}
+            key={device.thingId || device.thingName}
+            onClick={() => onSelectThing?.(device.thingId)}
+            role={onSelectThing ? "button" : undefined}
+            tabIndex={onSelectThing ? 0 : undefined}
           >
-            <X size={11} />
-            隐藏
-          </button>
-        </div>
-      ))}
+            <div className="rec-item-main">
+              <span className="rec-item-name">{device.thingName}</span>
+              <div className="rec-item-meta">
+                {thing?.type && <span className="rec-item-type">{thing.type}</span>}
+                {roomName && <span className="rec-item-room">{roomName}</span>}
+                <span className="rec-item-count">{device.count} 项能力</span>
+              </div>
+              <small className="rec-item-action">{device.action}</small>
+            </div>
+            <button
+              type="button"
+              className="rec-hide-btn"
+              disabled={Boolean(actionId)}
+              onClick={(e) => { e.stopPropagation(); onHideThing(device.thingId); }}
+              title="仅从建议调整清单隐藏，不影响地图和设备模型"
+            >
+              <X size={11} />
+              隐藏
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

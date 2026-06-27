@@ -1641,6 +1641,239 @@ button {
   background: rgba(224, 238, 233, 0.22);
 }
 
+/* ── Device Detail Enhancement ── */
+.detail-edit-group {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(69, 111, 104, 0.12);
+}
+
+.detail-source-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(69, 111, 104, 0.12);
+}
+
+.detail-source-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.detail-label {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  width: 60px;
+}
+
+.detail-value {
+  font-size: 12px;
+  color: var(--text);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.detail-value.mono {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.detail-value.online {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.detail-value.offline {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.risk-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.risk-badge.risk-low {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.risk-badge.risk-medium {
+  background: rgba(251, 191, 36, 0.15);
+  color: #d97706;
+}
+
+.risk-badge.risk-high {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+.risk-badge.risk-sensitive {
+  background: rgba(168, 85, 247, 0.15);
+  color: #9333ea;
+}
+
+.detail-capability-section {
+  padding: 10px 0;
+}
+
+.detail-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.detail-section-header span {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.detail-section-header strong {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.detail-capability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-cap-row {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid transparent;
+}
+
+.detail-cap-row.risk-low {
+  border-left-color: #22c55e;
+}
+
+.detail-cap-row.risk-medium {
+  border-left-color: #fbbf24;
+}
+
+.detail-cap-row.risk-high {
+  border-left-color: #ef4444;
+}
+
+.detail-cap-row.risk-sensitive {
+  border-left-color: #a855f7;
+}
+
+.detail-cap-row.has-overlay {
+  background: rgba(14, 165, 233, 0.06);
+  border-left-color: var(--cyan, #0ea5e9);
+}
+
+.detail-cap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.detail-cap-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-cap-risk {
+  flex-shrink: 0;
+}
+
+.detail-cap-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.detail-cap-meta > span:first-child {
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.policy-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.policy-tag.auto {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+
+.policy-tag.protected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.policy-tag.review {
+  background: rgba(251, 191, 36, 0.12);
+  color: #d97706;
+}
+
+.binding-info {
+  font-size: 9px;
+  color: var(--muted);
+  font-family: "SF Mono", "Fira Code", monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.binding-info.unbound {
+  color: #ef4444;
+  font-style: italic;
+}
+
+.detail-cap-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(14, 165, 233, 0.15);
+}
+
+.detail-cap-overlay span {
+  font-size: 9px;
+  color: var(--cyan, #0ea5e9);
+  font-weight: 700;
+}
+
+.detail-cap-overlay small {
+  font-size: 9px;
+  color: var(--muted);
+}
+
 .model-save-button,
 .model-open-button {
   display: inline-flex;
@@ -2028,61 +2261,99 @@ button {
 }
 
 .recommendation-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 3px 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
-  padding: 7px;
+  padding: 8px 10px;
   border: 1px solid rgba(69, 111, 104, 0.14);
   border-radius: 8px;
   background: rgba(224, 238, 233, 0.22);
 }
 
-.recommendation-item span,
-.recommendation-item strong,
-.recommendation-item small {
+.recommendation-item.clickable {
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.recommendation-item.clickable:hover {
+  border-color: rgba(14, 165, 233, 0.4);
+  background: rgba(14, 165, 233, 0.06);
+}
+
+.rec-item-main {
+  flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rec-item-name {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.recommendation-item span {
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 800;
+.rec-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
-.recommendation-item strong {
-  color: var(--amber);
-  font-size: 11px;
+.rec-item-type {
+  font-size: 9px;
+  color: var(--muted);
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(69, 111, 104, 0.1);
+  white-space: nowrap;
 }
 
-.recommendation-item small {
-  grid-column: 1 / -1;
+.rec-item-room {
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.rec-item-count {
+  font-size: 9px;
+  color: var(--amber, #f59e0b);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rec-item-action {
   color: var(--muted);
   font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.recommendation-item button {
-  grid-column: 1 / -1;
+.rec-hide-btn {
+  flex-shrink: 0;
   display: inline-flex;
-  gap: 4px;
+  gap: 3px;
   align-items: center;
   justify-content: center;
-  width: fit-content;
-  min-height: 24px;
-  padding: 0 7px;
+  min-height: 22px;
+  padding: 0 6px;
   border: 1px solid rgba(248, 113, 113, 0.24);
-  border-radius: 8px;
+  border-radius: 6px;
   color: #b74642;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 9px;
+  font-weight: 700;
   background: rgba(127, 29, 29, 0.18);
   cursor: pointer;
 }
 
-.recommendation-item button:disabled {
+.rec-hide-btn:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
