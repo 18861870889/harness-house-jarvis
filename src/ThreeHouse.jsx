@@ -8,17 +8,17 @@ import { rooms } from "./simulator.js";
 // Constants
 // ═══════════════════════════════════════════════════
 
-const CEILING_HEIGHT = 2.7;
+const CEILING_HEIGHT = 1.4;
 const WALL_HEIGHT_DEFAULT = 1.1;
-const WALL_HEIGHT_SELECTED = 0.3;
+const WALL_HEIGHT_SELECTED = 0.35;
 const WALL_THICKNESS = 0.12;
 const WALL_OPACITY_DEFAULT = 0.88;
 const WALL_OPACITY_SELECTED = 0.3;
 const WALL_COLOR = 0xf5f5f0;
 const WALL_COLOR_SELECTED = 0xb7dfd6;
 const FLOOR_THICKNESS = 0.1;
-const LABEL_Y = CEILING_HEIGHT + 0.25;
-const DOT_Y = CEILING_HEIGHT + 0.12;
+const LABEL_Y = CEILING_HEIGHT + 0.2;
+const DOT_Y = CEILING_HEIGHT + 0.1;
 
 const STATUS_COLOR = {
   active: 0x22c55e,
@@ -691,6 +691,7 @@ function addCeilingLight(group, device, x, z, animated) {
 
 function addFloorLamp(group, device, x, z, animated) {
   const on = device.on;
+  const poleHeight = CEILING_HEIGHT * 0.65;
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(0.08, 0.1, 0.03, 16),
     new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 }),
@@ -699,10 +700,10 @@ function addFloorLamp(group, device, x, z, animated) {
   group.add(base);
 
   const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.02, 0.02, 1.5, 8),
+    new THREE.CylinderGeometry(0.02, 0.02, poleHeight, 8),
     new THREE.MeshStandardMaterial({ color: 0xb0b0b0, metalness: 0.5, roughness: 0.3 }),
   );
-  pole.position.set(x, 0.78, z);
+  pole.position.set(x, 0.03 + poleHeight / 2, z);
   group.add(pole);
 
   const shadeMat = new THREE.MeshStandardMaterial({
@@ -714,13 +715,13 @@ function addFloorLamp(group, device, x, z, animated) {
     opacity: 0.7,
   });
   const shade = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.15, 16, 1, true), shadeMat);
-  shade.position.set(x, 1.55, z);
+  shade.position.set(x, 0.03 + poleHeight, z);
   group.add(shade);
   animated.push({ kind: "light", object: shade, active: on });
 
   if (on) {
     const light = new THREE.PointLight(0xffb74d, 0.6, 2.5);
-    light.position.set(x, 1.4, z);
+    light.position.set(x, 0.03 + poleHeight - 0.1, z);
     group.add(light);
   }
 }
@@ -769,7 +770,7 @@ function addCurtainDevice(group, device, x, z) {
   rail.position.set(x, railY, z);
   group.add(rail);
 
-  const curtainHeight = 1.5;
+  const curtainHeight = CEILING_HEIGHT - 0.25;
   const curtainWidth = Math.max(0.12, 0.64 * (1 - openness));
   const curtainMat = new THREE.MeshStandardMaterial({
     color: 0x60a5fa,
@@ -975,12 +976,12 @@ export default function ThreeHouse({ devices, sceneModel, selectedRoomId, onSele
     const container = containerRef.current;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf2f7f5);
-    scene.fog = new THREE.Fog(0xf2f7f5, 15, 35);
+    scene.fog = new THREE.Fog(0xf2f7f5, 18, 40);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 100);
-    camera.position.set(7.5, 9.5, 8.0);
-    camera.lookAt(0, 1.2, 0);
+    camera.position.set(6.5, 7.5, 7.0);
+    camera.lookAt(0, 0.7, 0);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -999,10 +1000,10 @@ export default function ThreeHouse({ devices, sceneModel, selectedRoomId, onSele
     controls.enableRotate = true;
     controls.enablePan = true;
     controls.enableZoom = true;
-    controls.minDistance = 7;
-    controls.maxDistance = 22;
+    controls.minDistance = 6;
+    controls.maxDistance = 20;
     controls.maxPolarAngle = Math.PI / 2.15;
-    controls.target.set(0, 1.2, 0);
+    controls.target.set(0, 0.7, 0);
     controlsRef.current = controls;
 
     const ambient = new THREE.HemisphereLight(0xffffff, 0xc3d5d0, 2.15);
