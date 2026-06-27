@@ -979,8 +979,8 @@ export default function ThreeHouse({ devices, sceneModel, selectedRoomId, onSele
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 100);
-    camera.position.set(6.8, 8.2, 7.2);
-    camera.lookAt(0, 1, 0);
+    camera.position.set(7.5, 9.5, 8.0);
+    camera.lookAt(0, 1.2, 0);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -1000,9 +1000,9 @@ export default function ThreeHouse({ devices, sceneModel, selectedRoomId, onSele
     controls.enablePan = true;
     controls.enableZoom = true;
     controls.minDistance = 7;
-    controls.maxDistance = 20;
+    controls.maxDistance = 22;
     controls.maxPolarAngle = Math.PI / 2.15;
-    controls.target.set(0, 1, 0);
+    controls.target.set(0, 1.2, 0);
     controlsRef.current = controls;
 
     const ambient = new THREE.HemisphereLight(0xffffff, 0xc3d5d0, 2.15);

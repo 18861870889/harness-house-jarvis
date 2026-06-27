@@ -2373,6 +2373,60 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
     setPolygonDraft([]);
   }, []);
 
+  const handleVertexDragStart = useCallback(
+    (event, roomId, vertexIndex) => {
+      if (drawMode === "polygon") return;
+      event.stopPropagation();
+      event.preventDefault();
+      const mapRect = mapRef.current?.getBoundingClientRect();
+      if (!mapRect) return;
+      const room = model.rooms.find((r) => r.id === roomId);
+      if (!room?.polygon) return;
+      activeRoomEditRef.current = {
+        roomId,
+        vertexIndex,
+        mode: "vertex",
+        clientX: event.clientX,
+        clientY: event.clientY,
+        mapWidth: Math.max(1, mapRect.width),
+        mapHeight: Math.max(1, mapRect.height),
+        polygon: room.polygon.map((p) => ({ ...p })),
+      };
+      setActiveRoomEditKey(`${roomId}:vertex:${vertexIndex}`);
+    },
+    [drawMode, model.rooms],
+  );
+
+  useEffect(() => {
+    const handlePointerMove = (event) => {
+      const interaction = activeRoomEditRef.current;
+      if (!interaction || interaction.mode !== "vertex") return;
+      event.preventDefault();
+      const mapRect = mapRef.current?.getBoundingClientRect();
+      if (!mapRect) return;
+      const x = Math.max(0, Math.min(100, Math.round(((event.clientX - mapRect.left) / mapRect.width) * 10000) / 100));
+      const y = Math.max(0, Math.min(100, Math.round(((event.clientY - mapRect.top) / mapRect.height) * 10000) / 100));
+      const polygon = interaction.polygon.map((p, i) =>
+        i === interaction.vertexIndex ? { x, y } : p
+      );
+      updateState(updateSpatialRoomPolygon(stateRef.current, interaction.roomId, polygon));
+    };
+    const handlePointerUp = () => {
+      if (activeRoomEditRef.current?.mode === "vertex") {
+        activeRoomEditRef.current = null;
+        setActiveRoomEditKey(null);
+      }
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [updateState]);
+
   const polygonRooms = useMemo(
     () => model.rooms.filter((room) => room.polygon && room.polygon.length >= 3),
     [model.rooms],
@@ -2547,15 +2601,30 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
             >
               {polygonRooms.map((room) => {
                 const pts = room.polygon.map((p) => `${p.x},${p.y}`).join(" ");
+                const isSelected = room.id === selectedRoomId;
                 return (
                   <polygon
                     key={room.id}
                     points={pts}
-                    className={`spatial-polygon-room ${room.id === selectedRoomId ? "selected" : ""}`}
+                    className={`spatial-polygon-room ${isSelected ? "selected" : ""}`}
                     onClick={(e) => { e.stopPropagation(); onSelectRoom(room.id); }}
                   />
                 );
               })}
+              {polygonRooms
+                .filter((room) => room.id === selectedRoomId && drawMode !== "polygon")
+                .flatMap((room) =>
+                  room.polygon.map((vertex, index) => (
+                    <circle
+                      key={`${room.id}-v${index}`}
+                      cx={vertex.x}
+                      cy={vertex.y}
+                      r="1.2"
+                      className="spatial-polygon-vertex-editable"
+                      onPointerDown={(e) => handleVertexDragStart(e, room.id, index)}
+                    />
+                  )),
+                )}
               {polygonDraft.length > 0 && (
                 <>
                   <polyline
@@ -2610,6 +2679,7 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
             room={selectedRoom}
             onRename={(roomId, value) => updateState(updateSpatialRoomName(state, roomId, value))}
             onRectChange={handleRoomRectInput}
+            onPolygonChange={(roomId, points) => updateState(updateSpatialRoomPolygon(state, roomId, points))}
             onRemove={handleRemoveRoom}
           />
 
@@ -2670,15 +2740,16 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
   );
 }
 
-function SpatialRoomDetail({ room, onRename, onRectChange, onRemove }) {
+function SpatialRoomDetail({ room, onRename, onRectChange, onPolygonChange, onRemove }) {
   if (!room) return null;
   const rect = room.mapRect ?? { left: 0, top: 0, width: 10, height: 10 };
+  const isPolygon = Array.isArray(room.polygon) && room.polygon.length >= 3;
   return (
     <div className="spatial-room-detail">
       <div className="spatial-room-detail-header">
         <Home size={13} />
         <strong>{room.editorName}</strong>
-        <span>{room.custom ? "自定义" : room.spatialSource === "editor" ? "已校准" : "系统"}</span>
+        <span>{room.custom ? (isPolygon ? "多边形" : "自定义") : room.spatialSource === "editor" ? "已校准" : "系统"}</span>
       </div>
       <div className="spatial-detail-grid">
         <label>
@@ -2690,26 +2761,72 @@ function SpatialRoomDetail({ room, onRename, onRectChange, onRemove }) {
           <input value={room.type ?? "generic"} readOnly />
         </label>
       </div>
-      <div className="spatial-rect-grid">
-        {[
-          ["left", "X"],
-          ["top", "Y"],
-          ["width", "W"],
-          ["height", "H"],
-        ].map(([key, label]) => (
-          <label key={key}>
-            <span>{label}</span>
-            <input
-              type="number"
-              min={key === "width" || key === "height" ? 4 : 0}
-              max={100}
-              step={0.5}
-              value={rect[key]}
-              onChange={(event) => onRectChange(room.id, key, event.target.value)}
-            />
-          </label>
-        ))}
-      </div>
+      {isPolygon ? (
+        <div className="spatial-polygon-vertices">
+          <div className="spatial-polygon-vertices-title">
+            <span>顶点</span>
+            <strong>{room.polygon.length}</strong>
+          </div>
+          {room.polygon.map((vertex, index) => (
+            <div className="spatial-vertex-row" key={index}>
+              <span className="spatial-vertex-index">{index + 1}</span>
+              <label>
+                <span>X</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={vertex.x}
+                  onChange={(event) => {
+                    const points = room.polygon.map((p, i) =>
+                      i === index ? { ...p, x: Number(event.target.value) } : p
+                    );
+                    onPolygonChange(room.id, points);
+                  }}
+                />
+              </label>
+              <label>
+                <span>Y</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={vertex.y}
+                  onChange={(event) => {
+                    const points = room.polygon.map((p, i) =>
+                      i === index ? { ...p, y: Number(event.target.value) } : p
+                    );
+                    onPolygonChange(room.id, points);
+                  }}
+                />
+              </label>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="spatial-rect-grid">
+          {[
+            ["left", "X"],
+            ["top", "Y"],
+            ["width", "W"],
+            ["height", "H"],
+          ].map(([key, label]) => (
+            <label key={key}>
+              <span>{label}</span>
+              <input
+                type="number"
+                min={key === "width" || key === "height" ? 4 : 0}
+                max={100}
+                step={0.5}
+                value={rect[key]}
+                onChange={(event) => onRectChange(room.id, key, event.target.value)}
+              />
+            </label>
+          ))}
+        </div>
+      )}
       <div className="spatial-detail-actions single-action">
         <button type="button" onClick={() => onRemove(room.id)} disabled={!room.custom}>
           <Trash2 size={12} />

@@ -246,6 +246,79 @@ button {
   white-space: nowrap;
 }
 
+.spatial-polygon-vertices {
+  margin-top: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.spatial-polygon-vertices-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.spatial-polygon-vertices-title strong {
+  color: var(--text);
+}
+
+.spatial-vertex-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.spatial-vertex-index {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.15);
+  color: #0284c7;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.spatial-vertex-row label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.spatial-vertex-row label span {
+  font-size: 10px;
+  color: var(--muted);
+  width: 10px;
+}
+
+.spatial-vertex-row input {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 11px;
+  border: 1px solid rgba(69, 111, 104, 0.2);
+  border-radius: 4px;
+}
+
+.spatial-polygon-vertex-editable {
+  fill: rgba(14, 165, 233, 0.9);
+  stroke: white;
+  stroke-width: 0.2;
+  cursor: grab;
+  r: 1.2;
+}
+
+.spatial-polygon-vertex-editable:active {
+  cursor: grabbing;
+}
+
 .left-rail,
 .right-rail {
   position: absolute;
