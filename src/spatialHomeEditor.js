@@ -486,13 +486,18 @@ function normalizeEditorRooms(sceneRooms, state) {
   return visibleRooms.map((room) => {
     const groupSecondary = state.roomGroups?.[room.id];
     if (!groupSecondary?.length) return room;
-    const secondaryRects = groupSecondary
+    const secondaryRooms = groupSecondary
       .map((id) => roomById.get(id))
-      .filter(Boolean)
+      .filter(Boolean);
+    const secondaryRects = secondaryRooms
       .map((sec) => editorRectToSceneRoom(sec.mapRect, bounds));
+    const secondaryMapRects = secondaryRooms
+      .map((sec) => sec.mapRect)
+      .filter(Boolean);
     return {
       ...room,
       allRects: [editorRectToSceneRoom(room.mapRect, bounds), ...secondaryRects],
+      allMapRects: [room.mapRect, ...secondaryMapRects].filter(Boolean),
       mergedCount: groupSecondary.length + 1,
     };
   });

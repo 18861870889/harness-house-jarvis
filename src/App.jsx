@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bot,
@@ -1108,6 +1108,18 @@ export default function App() {
       />
 
       <section className="scene-panel" aria-label="三维房屋模拟器">
+        <div className="scene-panel-toolbar">
+          <button
+            type="button"
+            className="scene-refresh-btn"
+            onClick={refreshHcmHome}
+            disabled={hcmStatus?.state === "loading"}
+            title="刷新设备状态"
+          >
+            <RefreshCw size={14} className={hcmStatus?.state === "loading" ? "spinning" : ""} />
+            {hcmStatus?.state === "loading" ? "同步中…" : "刷新"}
+          </button>
+        </div>
         <ThreeHouse
           devices={devices}
           sceneModel={houseSceneModel}
@@ -2460,38 +2472,51 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
               </div>
             )}
             {model.rooms.map((room) => (
-              <button
-                className={[
-                  "spatial-room-zone",
-                  room.id === selectedRoomId ? "selected" : "",
-                  multiSelectIds.includes(room.id) ? "multi-selected" : "",
-                  activeRoomEditKey?.startsWith(`${room.id}:`) ? "editing" : "",
-                  room.spatialSource === "editor" ? "customized" : "",
-                  room.mergedCount ? "merged" : "",
-                ].filter(Boolean).join(" ")}
-                key={room.id}
-                type="button"
-                style={room.mapRect ? {
-                  left: `${room.mapRect.left}%`,
-                  top: `${room.mapRect.top}%`,
-                  width: `${room.mapRect.width}%`,
-                  height: `${room.mapRect.height}%`,
-                } : undefined}
-                onClick={(event) => handleRoomClick(room.id, event)}
-                onPointerDown={(event) => handleRoomPointerDown(event, room, "move")}
-                onDragOver={handleMapDragOver}
-                onDrop={(event) => handleDrop(event, room.id)}
-                title={room.editorName}
-              >
-                <span>{room.editorName}{room.mergedCount ? ` · ${room.mergedCount}矩形` : ""}</span>
-                {workspace && (
-                  <span
-                    className="room-resize-handle"
-                    onPointerDown={(event) => handleRoomPointerDown(event, room, "resize")}
-                    title="缩放房间"
+              <Fragment key={room.id}>
+                {room.mergedCount && room.allMapRects?.length > 1 && room.allMapRects.slice(1).map((rect, i) => (
+                  <div
+                    className="spatial-room-zone merged-secondary"
+                    key={`${room.id}-sec-${i}`}
+                    style={{
+                      left: `${rect.left}%`,
+                      top: `${rect.top}%`,
+                      width: `${rect.width}%`,
+                      height: `${rect.height}%`,
+                    }}
                   />
-                )}
-              </button>
+                ))}
+                <button
+                  className={[
+                    "spatial-room-zone",
+                    room.id === selectedRoomId ? "selected" : "",
+                    multiSelectIds.includes(room.id) ? "multi-selected" : "",
+                    activeRoomEditKey?.startsWith(`${room.id}:`) ? "editing" : "",
+                    room.spatialSource === "editor" ? "customized" : "",
+                    room.mergedCount ? "merged" : "",
+                  ].filter(Boolean).join(" ")}
+                  type="button"
+                  style={room.mapRect ? {
+                    left: `${room.mapRect.left}%`,
+                    top: `${room.mapRect.top}%`,
+                    width: `${room.mapRect.width}%`,
+                    height: `${room.mapRect.height}%`,
+                  } : undefined}
+                  onClick={(event) => handleRoomClick(room.id, event)}
+                  onPointerDown={(event) => handleRoomPointerDown(event, room, "move")}
+                  onDragOver={handleMapDragOver}
+                  onDrop={(event) => handleDrop(event, room.id)}
+                  title={room.editorName}
+                >
+                  <span>{room.editorName}{room.mergedCount ? ` · ${room.mergedCount}矩形` : ""}</span>
+                  {workspace && (
+                    <span
+                      className="room-resize-handle"
+                      onPointerDown={(event) => handleRoomPointerDown(event, room, "resize")}
+                      title="缩放房间"
+                    />
+                  )}
+                </button>
+              </Fragment>
             ))}
             {markers.map(({ device, x, y, ghost }) => (
               <button
