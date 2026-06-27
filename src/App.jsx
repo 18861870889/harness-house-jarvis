@@ -276,6 +276,16 @@ export default function App() {
   }, []);
 
   const currentRoomId = useMemo(() => inferCurrentRoom(devices), [devices]);
+  const liveOccupiedRooms = useMemo(() => {
+    const occupied = Object.values(devices)
+      .filter(
+        (device) =>
+          ["presence_sensor", "motion_sensor"].includes(device.type) &&
+          device.detected,
+      )
+      .map((device) => device.roomId);
+    return [...new Set(occupied)];
+  }, [devices]);
   const baseHouseSceneModel = useMemo(
     () =>
       createHouseSceneModel({
@@ -1159,6 +1169,8 @@ export default function App() {
           onReplay={replayAuditEntry}
           onIgnoreCandidate={ignoreLearningCandidate}
           onDeleteCandidate={deleteLearningCandidateFromMemory}
+          liveRoomName={getSceneRoomName(currentRoomId, houseSceneModel.rooms)}
+          liveOccupiedRooms={liveOccupiedRooms.map((id) => getSceneRoomName(id, houseSceneModel.rooms))}
         />
       </aside>
 
@@ -3196,7 +3208,7 @@ function PlanPreview({ plan }) {
   );
 }
 
-function IntelligencePanel({ audit, memory, agents, actionId, onRefresh, onReplay, onIgnoreCandidate, onDeleteCandidate }) {
+function IntelligencePanel({ audit, memory, agents, actionId, onRefresh, onReplay, onIgnoreCandidate, onDeleteCandidate, liveRoomName, liveOccupiedRooms = [] }) {
   const candidates = memory?.topCandidates ?? [];
   const corrections = memory?.correctionCandidates ?? [];
   const context = agents?.agents?.context;
@@ -3207,8 +3219,10 @@ function IntelligencePanel({ audit, memory, agents, actionId, onRefresh, onRepla
   const insightItems = [
     {
       label: "人在区域",
-      value: context?.likelySpace?.name ?? "未知",
-      meta: context?.likelySpace ? `${Math.round((context.likelySpace.confidence ?? 0) * 100)}%` : "暂无占用信号",
+      value: liveRoomName ?? "未知",
+      meta: liveOccupiedRooms.length > 0
+        ? `${liveOccupiedRooms.length} 个区域有人`
+        : "暂无占用信号",
     },
     { label: "学习候选", value: `${learning?.candidates?.length ?? 0}`, meta: "仅建议" },
     { label: "映射建议", value: `${mapping?.candidates?.length ?? 0}`, meta: "待确认" },
