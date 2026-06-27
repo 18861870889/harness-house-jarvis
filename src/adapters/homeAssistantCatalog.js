@@ -114,9 +114,20 @@ function groupEntitiesByDevice(entities) {
   return grouped;
 }
 
+const SUPPORTED_PLATFORMS = new Set([
+  "xiaomi_home",
+  "roborock",
+]);
+
 function isProviderDevice(device, entities) {
   const identifiers = device.identifiers ?? [];
-  return identifiers.some(([domain]) => domain === "xiaomi_home") || entities.some((entity) => entity.platform === "xiaomi_home");
+  // Include devices from supported platforms
+  if (identifiers.some(([domain]) => SUPPORTED_PLATFORMS.has(domain))) return true;
+  if (entities.some((entity) => entity.platform && SUPPORTED_PLATFORMS.has(entity.platform))) return true;
+  // Also include devices with controllable domains (vacuum, climate, cover, fan, light, switch, media_player)
+  const controllableDomains = new Set(["vacuum", "climate", "cover", "fan", "light", "switch", "media_player"]);
+  if (entities.some((entity) => controllableDomains.has(entity.entity_id.split(".")[0]))) return true;
+  return false;
 }
 
 function resolveSpace(device, areas) {
