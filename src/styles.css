@@ -1009,6 +1009,18 @@ button {
   gap: 8px;
   align-items: center;
   padding: 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.device-row:hover {
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.device-row.selected {
+  background: rgba(14, 165, 233, 0.15);
+  border-left: 2px solid var(--cyan);
 }
 
 .device-type {
@@ -3572,4 +3584,200 @@ button {
     max-width: none;
     text-align: left;
   }
+}
+
+/* ── Device Capability Panel ── */
+.capability-panel {
+  flex: 0 0 auto;
+}
+
+.capability-hint {
+  padding: 16px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.capability-device-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 6px;
+}
+
+.capability-device-header strong {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.risk-tag {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.risk-tag.risk-low {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.risk-tag.risk-medium {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.risk-tag.risk-high {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.risk-tag.risk-sensitive {
+  background: rgba(117, 102, 168, 0.2);
+  color: #a78bfa;
+}
+
+.capability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capability-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.capability-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.capability-row.disabled {
+  opacity: 0.45;
+}
+
+.capability-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.capability-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.capability-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.risk-mini {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.risk-mini.risk-low {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+}
+
+.risk-mini.risk-medium {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+
+.risk-mini.risk-high {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.risk-mini.risk-sensitive {
+  background: rgba(117, 102, 168, 0.15);
+  color: #a78bfa;
+}
+
+.capability-range {
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.capability-confirm {
+  font-size: 9px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.capability-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.toggle-track {
+  display: inline-block;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.capability-toggle.on .toggle-track {
+  background: rgba(14, 165, 233, 0.5);
+}
+
+.capability-toggle.off .toggle-track {
+  background: rgba(100, 116, 139, 0.4);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  transition: transform 0.2s;
+}
+
+.capability-toggle.on .toggle-thumb {
+  transform: translateX(12px);
+}
+
+.toggle-label {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.capability-toggle.on .toggle-label {
+  color: var(--cyan);
+}
+
+.capability-toggle.off .toggle-label {
+  color: var(--muted);
 }

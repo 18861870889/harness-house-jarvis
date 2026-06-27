@@ -91,6 +91,7 @@ import {
   summarizeHome,
   tickDevices,
 } from "./simulator.js";
+import { createDeviceManifest } from "./deviceRuntime.js";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const SPATIAL_EDITOR_STORAGE_KEY = "harness-house.spatial-editor.v0.22";
@@ -209,6 +210,8 @@ export default function App() {
   const [devices, setDevices] = useState(() => structuredClone(initialDevices));
   const [input, setInput] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState("study");
+  const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+  const [capabilityOverrides, setCapabilityOverrides] = useState({});
   const [messages, setMessages] = useState(() => [
     makeMessage("assistant", "Harness House 本地模拟器已就绪。", {
       path: "system",
@@ -313,6 +316,16 @@ export default function App() {
       houseSceneModel.devices.filter((device) => device.roomId === selectedRoomId),
     [houseSceneModel, selectedRoomId],
   );
+  const selectedDevice = useMemo(
+    () => selectedRoomDevices.find((device) => device.id === selectedDeviceId) ?? null,
+    [selectedRoomDevices, selectedDeviceId],
+  );
+  const toggleCapability = useCallback((deviceKey, capabilityName) => {
+    setCapabilityOverrides((prev) => {
+      const key = `${deviceKey}:${capabilityName}`;
+      return { ...prev, [key]: !prev[key] };
+    });
+  }, []);
   const selectedRoomName = useMemo(
     () => getSceneRoomName(selectedRoomId, houseSceneModel.rooms),
     [houseSceneModel.rooms, selectedRoomId],
@@ -1095,19 +1108,15 @@ export default function App() {
           icon={Home}
         />
         <RoomSelector rooms={houseSceneModel.rooms} selectedRoomId={selectedRoomId} onSelect={setSelectedRoomId} />
-        <DeviceList devices={selectedRoomDevices} />
-        <HcmCatalog
-          home={hcmHome}
-          onboarding={onboardingPlan}
-          status={hcmStatus}
-          onRefresh={refreshHcmHome}
-          onApplyDefaultRun={applyDefaultRun}
-          onHideThing={hideHcmThing}
-          onOpenModel={() => handleViewChange(APP_VIEWS.HOME_MODEL)}
-          onRecordOnboardingBaseline={recordOnboardingBaseline}
-          reviewActionId={reviewActionId}
-          onboardingActionId={onboardingActionId}
-          defaultRunSummary={defaultRunSummary}
+        <DeviceList
+          devices={selectedRoomDevices}
+          selectedDeviceId={selectedDeviceId}
+          onSelectDevice={setSelectedDeviceId}
+        />
+        <DeviceCapabilityPanel
+          device={selectedDevice}
+          capabilityOverrides={capabilityOverrides}
+          onToggleCapability={toggleCapability}
         />
         <SystemMetrics sceneModel={houseSceneModel} fallbackDevices={devices} />
       </aside>
@@ -1116,7 +1125,7 @@ export default function App() {
         <RailHeader
           eyebrow="Runtime"
           title="意图与执行"
-          meta={llmStatus.configured ? `Real · ${llmStatus.model}` : "Sim fallback"}
+          meta="Hermes · glm-5.2"
           icon={Bot}
         />
         <CommandConsole
@@ -1242,8 +1251,8 @@ function Header({ currentRoomId, activeCount, llmStatus, runtimeStatus, sceneRoo
         <Fact icon={Power} label="活跃设备" value={`${activeCount}`} />
         <Fact
           icon={Sparkles}
-          label="LLM"
-          value={llmStatus.configured ? `Real · ${llmStatus.model}` : "Sim fallback"}
+          label="控制大脑"
+          value="Hermes · glm-5.2"
         />
         <Fact
           icon={ShieldCheck}
@@ -2709,7 +2718,7 @@ function RoomSelector({ rooms: sceneRooms, selectedRoomId, onSelect }) {
   );
 }
 
-function DeviceList({ devices }) {
+function DeviceList({ devices, selectedDeviceId, onSelectDevice }) {
   return (
     <section className="panel device-panel">
       <div className="panel-title">
@@ -2718,21 +2727,122 @@ function DeviceList({ devices }) {
       </div>
       <div className="device-list">
         {devices.map((device) => (
-          <DeviceRow device={device} key={device.id} />
+          <DeviceRow
+            device={device}
+            key={device.id}
+            selected={device.id === selectedDeviceId}
+            onSelect={onSelectDevice}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function DeviceRow({ device }) {
+function DeviceRow({ device, selected, onSelect }) {
   const state = deviceStateLabel(device);
   return (
-    <div className={`device-row risk-${device.risk}`}>
+    <div
+      className={`device-row risk-${device.risk} ${selected ? "selected" : ""}`}
+      onClick={() => onSelect?.(device.id)}
+      role="button"
+      tabIndex={0}
+    >
       <div className="device-type">{deviceTypeNames[device.type] ?? device.type}</div>
       <div className="device-name">{device.name}</div>
       <div className="device-state">{state}</div>
     </div>
+  );
+}
+
+const CAPABILITY_LABELS = {
+  turn_on: "开启",
+  turn_off: "关闭",
+  set_brightness: "调节亮度",
+  set_temperature: "调节温度",
+  set_speed: "调节风速",
+  set_position: "调节位置",
+  start_robot: "启动清扫",
+  dock_robot: "回充",
+  start_cycle: "启动运行",
+  stop_cycle: "停止运行",
+  dispense_food: "投放食物",
+  set_privacy_mode: "隐私模式",
+};
+
+const RISK_LABELS = {
+  low: "低风险",
+  medium: "中风险",
+  high: "高风险",
+  sensitive: "敏感",
+};
+
+const CONFIRMATION_LABELS = {
+  never: "无需确认",
+  sometimes: "偶尔确认",
+  always: "每次确认",
+};
+
+function DeviceCapabilityPanel({ device, capabilityOverrides, onToggleCapability }) {
+  if (!device) {
+    return (
+      <section className="panel capability-panel">
+        <div className="panel-title">
+          <ShieldCheck size={17} />
+          <h2>能力边界</h2>
+        </div>
+        <p className="capability-hint">点击上方设备查看其能力边界</p>
+      </section>
+    );
+  }
+
+  const manifest = createDeviceManifest(device);
+  const deviceKey = device.id;
+
+  return (
+    <section className="panel capability-panel">
+      <div className="panel-title">
+        <ShieldCheck size={17} />
+        <h2>能力边界</h2>
+      </div>
+      <div className="capability-device-header">
+        <strong>{device.name}</strong>
+        <span className={`risk-tag risk-${manifest.risk}`}>{RISK_LABELS[manifest.risk] ?? manifest.risk}</span>
+      </div>
+      <div className="capability-list">
+        {manifest.capabilities.map((cap) => {
+          const overrideKey = `${deviceKey}:${cap.name}`;
+          const disabled = Boolean(capabilityOverrides[overrideKey]);
+          return (
+            <div key={cap.name} className={`capability-row ${disabled ? "disabled" : ""}`}>
+              <div className="capability-info">
+                <span className="capability-name">{CAPABILITY_LABELS[cap.name] ?? cap.name}</span>
+                <div className="capability-meta">
+                  <span className={`risk-mini risk-${cap.risk}`}>{RISK_LABELS[cap.risk] ?? cap.risk}</span>
+                  {cap.valueType === "number" && (
+                    <span className="capability-range">
+                      {cap.min}–{cap.max}{cap.unit}
+                    </span>
+                  )}
+                  <span className="capability-confirm">{CONFIRMATION_LABELS[cap.confirmation] ?? cap.confirmation}</span>
+                </div>
+              </div>
+              <button
+                className={`capability-toggle ${disabled ? "off" : "on"}`}
+                type="button"
+                onClick={() => onToggleCapability(deviceKey, cap.name)}
+                title={disabled ? "已禁止 · 点击恢复" : "可控 · 点击禁止"}
+              >
+                <span className="toggle-track">
+                  <span className="toggle-thumb" />
+                </span>
+                <span className="toggle-label">{disabled ? "禁止" : "可控"}</span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -2780,9 +2890,9 @@ function CommandConsole({
   const realAvailable = Boolean(executionControl?.realAvailable);
   const effectiveReal = executionControl?.effectiveMode === COMMAND_EXECUTION_PREFERENCE.REAL;
   const messageListRef = useRef(null);
-  let executionHint = "只规划、模拟和审计";
+  let executionHint = "Hermes 规划 · 模拟执行";
   if (effectiveReal) {
-    executionHint = "真实控制低风险设备";
+    executionHint = "Hermes 规划 · 真实控制低风险设备";
   } else if (realSelected && !realAvailable) {
     executionHint = "后端未开启 Real，仍会模拟";
   } else if (realAvailable) {
