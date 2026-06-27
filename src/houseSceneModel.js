@@ -363,14 +363,15 @@ function createLifeViewThings(home) {
 
 function logicalAssetStatusLabel(thing) {
   const state = thing.state?.commandedState;
-  if (state === true) return "回路开启";
-  if (state === false) return "回路关闭";
+  if (state === true) return thing.type === "drying_rack" ? "通电" : "回路开启";
+  if (state === false) return thing.type === "drying_rack" ? "断电" : "回路关闭";
   return thing.online === false ? "控制器离线" : "状态未知";
 }
 
 function normalizeThingType(type) {
   if (type === "switch_panel") return "switch_panel";
   if (type === "hub" || type === "scale") return type;
+  if (type === "drying_rack") return "drying_rack";
   return type || "generic_entity";
 }
 

@@ -164,7 +164,7 @@ function statusForDevice(device) {
     case "dryer":
       return device.status === "running" ? `${device.minutesLeft}m` : device.status;
     case "drying_rack":
-      return `${safePercent(device.position, 0)}%`;
+      return device.on ? "通电" : "断电";
     default:
       return "";
   }
@@ -529,6 +529,8 @@ function addDevices(group, devices, selectedRoomId, animated) {
       addRobotDevice(group, device, x, z, animated);
     } else if (device.type === "camera") {
       addCameraDevice(group, device, x, z);
+    } else if (device.type === "drying_rack") {
+      addDryingRackDevice(group, device, x, z);
     } else if (["presence_sensor", "motion_sensor", "door_sensor"].includes(device.type)) {
       addSensorDevice(group, device, x, z, animated);
     } else {
@@ -723,6 +725,54 @@ function addFloorLamp(group, device, x, z, animated) {
     const light = new THREE.PointLight(0xffb74d, 0.6, 2.5);
     light.position.set(x, 0.03 + poleHeight - 0.1, z);
     group.add(light);
+  }
+}
+
+// ── Drying rack: wall-mounted horizontal pole ──
+
+function addDryingRackDevice(group, device, x, z) {
+  const on = device.on;
+  const poleLength = 1.2;
+  const mountHeight = CEILING_HEIGHT * 0.72;
+  const metalMat = new THREE.MeshStandardMaterial({
+    color: on ? 0xc0c0c0 : 0x808080,
+    metalness: 0.7,
+    roughness: 0.25,
+  });
+
+  // Two wall brackets
+  const bracketGeo = new THREE.BoxGeometry(0.035, 0.06, 0.035);
+  for (const ox of [-poleLength / 2, poleLength / 2]) {
+    const bracket = new THREE.Mesh(bracketGeo, metalMat);
+    bracket.position.set(x + ox, mountHeight, z - 0.02);
+    group.add(bracket);
+  }
+
+  // Horizontal pole
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.012, poleLength, 12),
+    metalMat,
+  );
+  pole.rotation.z = Math.PI / 2;
+  pole.position.set(x, mountHeight, z);
+  group.add(pole);
+
+  // Small end caps
+  const capGeo = new THREE.SphereGeometry(0.016, 8, 8);
+  for (const ox of [-poleLength / 2, poleLength / 2]) {
+    const cap = new THREE.Mesh(capGeo, metalMat);
+    cap.position.set(x + ox, mountHeight, z);
+    group.add(cap);
+  }
+
+  // Indicator stripe when powered
+  if (on) {
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(poleLength * 0.3, 0.004, 0.004),
+      new THREE.MeshBasicMaterial({ color: 0x34d399 }),
+    );
+    stripe.position.set(x, mountHeight + 0.014, z);
+    group.add(stripe);
   }
 }
 

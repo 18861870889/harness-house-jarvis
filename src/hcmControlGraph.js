@@ -257,12 +257,20 @@ function createEndpoint({ home, spaces, thing, controller, capability, override 
   };
 }
 
+const DRYING_RACK_NAME_PATTERN = /晾衣|衣杆/;
+
+function inferAssetType(assetName) {
+  if (DRYING_RACK_NAME_PATTERN.test(assetName ?? "")) return "drying_rack";
+  return "light";
+}
+
 function createAsset(endpoint, spaces) {
   const room = spaces.get(endpoint.targetSpaceId);
+  const assetName = endpoint.suggestedAssetName ?? endpoint.rawAssetName;
   return {
     id: endpoint.assetId,
     name: endpoint.suggestedAssetName,
-    type: "light",
+    type: inferAssetType(assetName),
     spaceId: endpoint.targetSpaceId,
     roomName: room?.name ?? endpoint.targetSpaceId,
     aliases: Array.from(new Set([endpoint.rawAssetName, endpoint.suggestedAssetName].filter(Boolean))),
