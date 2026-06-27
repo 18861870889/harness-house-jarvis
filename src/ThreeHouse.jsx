@@ -314,9 +314,18 @@ function addRooms(group, sceneRooms, selectedRoomId, roomStats) {
     const preview = room.layers?.includes("preview");
     const executing = room.layers?.includes("execution");
     const stats = roomStats.get(room.id) ?? { total: room.deviceCount ?? 0, active: 0 };
+    const isPolygon = Array.isArray(room.polygonScenePoints) && room.polygonScenePoints.length >= 3;
 
     const texture = getFloorTexture(room.type).clone();
-    texture.repeat.set(Math.max(1, room.width / 2), Math.max(1, room.depth / 2));
+    if (isPolygon) {
+      const bounds = room.polygonScenePoints.reduce(
+        (acc, p) => ({ minX: Math.min(acc.minX, p.x), maxX: Math.max(acc.maxX, p.x), minZ: Math.min(acc.minZ, p.z), maxZ: Math.max(acc.maxZ, p.z) }),
+        { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity },
+      );
+      texture.repeat.set(Math.max(1, (bounds.maxX - bounds.minX) / 2), Math.max(1, (bounds.maxZ - bounds.minZ) / 2));
+    } else {
+      texture.repeat.set(Math.max(1, room.width / 2), Math.max(1, room.depth / 2));
+    }
     const floorMaterial = new THREE.MeshStandardMaterial({
       color: active ? 0xcce9e2 : alert ? 0xf2d6d2 : (FLOOR_FALLBACK_COLOR[room.type] ?? 0xd4d0c8),
       map: texture,
@@ -325,8 +334,22 @@ function addRooms(group, sceneRooms, selectedRoomId, roomStats) {
       emissive: active ? 0x78bcae : alert ? 0xd88982 : preview ? 0x69b9aa : executing ? 0xd7a044 : 0x000000,
       emissiveIntensity: active || alert || preview || executing ? 0.06 : 0,
     });
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(room.width, FLOOR_THICKNESS, room.depth), floorMaterial);
-    floor.position.set(room.x, 0, room.z);
+
+    let floor;
+    if (isPolygon) {
+      const shape = new THREE.Shape();
+      const pts = room.polygonScenePoints;
+      shape.moveTo(pts[0].x, -pts[0].z);
+      for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i].x, -pts[i].z);
+      shape.closePath();
+      const floorGeo = new THREE.ShapeGeometry(shape);
+      floorGeo.rotateX(-Math.PI / 2);
+      floor = new THREE.Mesh(floorGeo, floorMaterial);
+      floor.position.y = 0.05;
+    } else {
+      floor = new THREE.Mesh(new THREE.BoxGeometry(room.width, FLOOR_THICKNESS, room.depth), floorMaterial);
+      floor.position.set(room.x, 0, room.z);
+    }
     floor.receiveShadow = true;
     floor.userData.roomId = room.id;
     group.add(floor);
@@ -391,6 +414,29 @@ function addWalls(group, room, active) {
     roughness: 0.9,
     metalness: 0,
   });
+
+  const isPolygon = Array.isArray(room.polygonScenePoints) && room.polygonScenePoints.length >= 3;
+  if (isPolygon) {
+    const pts = room.polygonScenePoints;
+    for (let i = 0; i < pts.length; i++) {
+      const next = pts[(i + 1) % pts.length];
+      const dx = next.x - pts[i].x;
+      const dz = next.z - pts[i].z;
+      const length = Math.sqrt(dx * dx + dz * dz);
+      if (length < 0.01) continue;
+      const angle = Math.atan2(dz, dx);
+      const midX = (pts[i].x + next.x) / 2;
+      const midZ = (pts[i].z + next.z) / 2;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(length, height, WALL_THICKNESS), material.clone());
+      wall.position.set(midX, height / 2, midZ);
+      wall.rotation.y = -angle;
+      wall.castShadow = true;
+      wall.userData.roomId = room.id;
+      group.add(wall);
+    }
+    return;
+  }
+
   const segments = [
     [room.width, WALL_THICKNESS, 0, -room.depth / 2],
     [room.width, WALL_THICKNESS, 0, room.depth / 2],

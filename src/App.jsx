@@ -37,6 +37,7 @@ import { planCommand } from "./commandPipeline.js";
 import { createHouseSceneModel, getSceneRoomName } from "./houseSceneModel.js";
 import {
   addSpatialRoom,
+  addSpatialPolygonRoom,
   assignSpatialDevice,
   applySpatialEditorToScene,
   applySpatialSuggestion,
@@ -49,9 +50,12 @@ import {
   migrateSpatialEditorStateToImageCoordinates,
   NAMING_MODES,
   placeSpatialDevice,
+  pointInPolygon,
+  polygonCentroid,
   removeSpatialRoom,
   SPATIAL_DEVICE_STATUS,
   updateSpatialDeviceName,
+  updateSpatialRoomPolygon,
   updateSpatialRoomRect,
   updateSpatialRoomName,
 } from "./spatialHomeEditor.js";
@@ -2049,6 +2053,8 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [activeRoomEditKey, setActiveRoomEditKey] = useState(null);
   const [floorPlanDragActive, setFloorPlanDragActive] = useState(false);
+  const [drawMode, setDrawMode] = useState("rect");
+  const [polygonDraft, setPolygonDraft] = useState([]);
   const selectedDevice = useMemo(
     () => (selectedDeviceId ? model.devices.find((device) => device.id === selectedDeviceId) ?? null : null),
     [model.devices, selectedDeviceId],
@@ -2319,6 +2325,59 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
     [state, updateState],
   );
 
+  const finishPolygon = useCallback(
+    (points) => {
+      if (points.length < 3) return;
+      const nextState = addSpatialPolygonRoom(state, { points, name: "新房间" });
+      updateState(nextState);
+      const newRoom = nextState.customRooms[nextState.customRooms.length - 1];
+      if (newRoom?.id) onSelectRoom(newRoom.id);
+      setPolygonDraft([]);
+      setDrawMode("rect");
+    },
+    [onSelectRoom, state, updateState],
+  );
+
+  const handlePolygonMapClick = useCallback(
+    (event) => {
+      if (drawMode !== "polygon") return;
+      const rect = mapRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+      if (polygonDraft.length >= 3) {
+        const first = polygonDraft[0];
+        const dist = Math.hypot(x - first.x, y - first.y);
+        if (dist < 3) {
+          finishPolygon(polygonDraft);
+          return;
+        }
+      }
+      setPolygonDraft([...polygonDraft, { x, y }]);
+    },
+    [drawMode, polygonDraft, finishPolygon],
+  );
+
+  const handlePolygonDoubleClick = useCallback(() => {
+    if (drawMode !== "polygon" || polygonDraft.length < 3) return;
+    finishPolygon(polygonDraft);
+  }, [drawMode, polygonDraft, finishPolygon]);
+
+  const handleCancelDraw = useCallback(() => {
+    setPolygonDraft([]);
+    setDrawMode("rect");
+  }, []);
+
+  const handleToggleDrawMode = useCallback(() => {
+    setDrawMode((prev) => (prev === "polygon" ? "rect" : "polygon"));
+    setPolygonDraft([]);
+  }, []);
+
+  const polygonRooms = useMemo(
+    () => model.rooms.filter((room) => room.polygon && room.polygon.length >= 3),
+    [model.rooms],
+  );
+
   const markers = useMemo(() => {
     const placed = model.devices
       .filter((device) => device.placement?.placed)
@@ -2351,9 +2410,24 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
         <MapIcon size={17} />
         <h2>{workspace ? "房屋结构编辑器" : "Spatial Model"}</h2>
         {workspace && (
-          <button className="mini-icon-button" type="button" onClick={handleAddRoom} title="新增房间">
-            <Plus size={13} />
-          </button>
+          <>
+            <button className="mini-icon-button" type="button" onClick={handleAddRoom} title="新增矩形房间">
+              <Plus size={13} />
+            </button>
+            <button
+              className={`mini-icon-button ${drawMode === "polygon" ? "active" : ""}`}
+              type="button"
+              onClick={handleToggleDrawMode}
+              title={drawMode === "polygon" ? "退出多边形绘制" : "多边形绘制模式"}
+            >
+              <Pencil size={13} />
+            </button>
+            {drawMode === "polygon" && (
+              <button className="mini-icon-button" type="button" onClick={handleCancelDraw} title="取消绘制">
+                <X size={13} />
+              </button>
+            )}
+          </>
         )}
         <button
           className="mini-icon-button"
@@ -2464,6 +2538,58 @@ function SpatialHomeEditor({ model, state, selectedRoomId, onStateChange, onSele
                 <LocateFixed size={12} />
               </button>
             ))}
+            <svg
+              className={`spatial-polygon-overlay ${drawMode === "polygon" ? "drawing" : ""}`}
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              onClick={handlePolygonMapClick}
+              onDoubleClick={handlePolygonDoubleClick}
+            >
+              {polygonRooms.map((room) => {
+                const pts = room.polygon.map((p) => `${p.x},${p.y}`).join(" ");
+                return (
+                  <polygon
+                    key={room.id}
+                    points={pts}
+                    className={`spatial-polygon-room ${room.id === selectedRoomId ? "selected" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); onSelectRoom(room.id); }}
+                  />
+                );
+              })}
+              {polygonDraft.length > 0 && (
+                <>
+                  <polyline
+                    points={polygonDraft.map((p) => `${p.x},${p.y}`).join(" ")}
+                    className="spatial-polygon-draft-line"
+                  />
+                  {polygonDraft.length >= 3 && (
+                    <line
+                      x1={polygonDraft[polygonDraft.length - 1].x}
+                      y1={polygonDraft[polygonDraft.length - 1].y}
+                      x2={polygonDraft[0].x}
+                      y2={polygonDraft[0].y}
+                      className="spatial-polygon-draft-close"
+                    />
+                  )}
+                  {polygonDraft.map((p, i) => (
+                    <circle
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r="0.8"
+                      className={`spatial-polygon-vertex ${i === 0 && polygonDraft.length >= 3 ? "closeable" : ""}`}
+                    />
+                  ))}
+                </>
+              )}
+            </svg>
+            {drawMode === "polygon" && (
+              <div className="spatial-draw-hint">
+                {polygonDraft.length < 3
+                  ? `点击放置顶点 (${polygonDraft.length}/3+) · 双击或点击起点闭合`
+                  : `${polygonDraft.length} 个顶点 · 点击起点或双击闭合`}
+              </div>
+            )}
           </div>
         </div>
 

@@ -346,11 +346,11 @@ function addRoomSummaryBadge(group, room, deviceCount, activeCount) {
 
 ---
 
-## 三、实施顺序
+## 三、实施进度
 
-1. **Task 3 (信息显示)** — 最快见效, 改动集中在 ThreeHouse.jsx
-2. **Task 2 (视觉升级)** — 中等工作量, 需要写纹理生成+设备建模函数
-3. **Task 1 (多边形房间)** — 最大工作量, 涉及数据模型+编辑器+3D渲染
+- [x] **Task 2 (视觉升级)** — 娃娃屋墙体 + 地面纹理 + 灯具分型 + 设备建模 + 比例修正 (commit 60a349d)
+- [x] **Task 3 (信息显示)** — 删除文字标签 + 状态点 + 房间摘要徽章 + 图例 (commit 60a349d)
+- [x] **Task 1 (多边形房间)** — 数据模型 + 编辑器 + 碰撞检测 + 3D渲染 (commit pending)
 
 每个 Task 完成后: 验证 → 提交 → 更新本文档状态
 

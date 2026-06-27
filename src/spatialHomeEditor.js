@@ -31,6 +31,7 @@ export function createSpatialEditorState(base = {}) {
     floorPlanImageUpdatedAt: typeof base.floorPlanImageUpdatedAt === "string" ? base.floorPlanImageUpdatedAt : "",
     roomNames: normalizeRecord(base.roomNames),
     roomRects: normalizeRectRecord(base.roomRects),
+    roomPolygons: normalizePolygonRecord(base.roomPolygons),
     customRooms: normalizeCustomRooms(base.customRooms),
     deviceAssignments: normalizeRecord(base.deviceAssignments),
     devicePlacements: normalizePlacementRecord(base.devicePlacements),
@@ -48,6 +49,7 @@ export function hasSpatialEditorEdits(state = {}) {
       editorState.floorPlanImageSize > 0 ||
       Object.keys(editorState.roomNames).length > 0 ||
       Object.keys(editorState.roomRects).length > 0 ||
+      Object.keys(editorState.roomPolygons).length > 0 ||
       editorState.customRooms.length > 0 ||
       Object.keys(editorState.deviceAssignments).length > 0 ||
       Object.keys(editorState.devicePlacements).length > 0 ||
@@ -124,6 +126,12 @@ export function migrateSpatialEditorStateToImageCoordinates(
   next.roomRects = Object.fromEntries(
     Object.entries(next.roomRects).map(([roomId, rect]) => [roomId, convertRectFromContainerToImage(rect, frame)]),
   );
+  next.roomPolygons = Object.fromEntries(
+    Object.entries(next.roomPolygons).map(([roomId, points]) => [
+      roomId,
+      points.map((p) => convertPlacementFromContainerToImage(p, frame)),
+    ]),
+  );
   next.customRooms = next.customRooms.map((room) => ({
     ...room,
     mapRect: convertRectFromContainerToImage(room.mapRect, frame),
@@ -154,6 +162,7 @@ export function removeSpatialRoom(state, roomId) {
   next.customRooms = next.customRooms.filter((room) => room.id !== roomId);
   delete next.roomNames[roomId];
   delete next.roomRects[roomId];
+  delete next.roomPolygons[roomId];
   for (const [deviceId, assignedRoomId] of Object.entries(next.deviceAssignments)) {
     if (assignedRoomId === roomId) next.deviceAssignments[deviceId] = null;
   }
@@ -307,6 +316,13 @@ export function mapSceneRoomToEditorRect(room, bounds) {
 export function findSpatialRoomAtPoint(rooms = [], x, y) {
   const px = clampPercent(x);
   const py = clampPercent(y);
+  const polygonRoom = [...rooms]
+    .reverse()
+    .find((room) => {
+      if (!room.polygon || room.polygon.length < 3) return false;
+      return pointInPolygon(room.polygon, px, py);
+    });
+  if (polygonRoom) return polygonRoom;
   return [...rooms]
     .reverse()
     .find((room) => {
@@ -321,23 +337,90 @@ export function findSpatialRoomAtPoint(rooms = [], x, y) {
     }) ?? null;
 }
 
+export function pointInPolygon(points, x, y) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const xi = points[i].x, yi = points[i].y;
+    const xj = points[j].x, yj = points[j].y;
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+export function polygonCentroid(points) {
+  if (!points?.length) return { x: 50, y: 50 };
+  let cx = 0, cy = 0;
+  for (const p of points) { cx += p.x; cy += p.y; }
+  return { x: cx / points.length, y: cy / points.length };
+}
+
+export function polygonToBounds(points) {
+  if (!points?.length) return normalizeEditorRect({ left: 35, top: 35, width: 20, height: 20 });
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return normalizeEditorRect({ left: minX, top: minY, width: maxX - minX, height: maxY - minY });
+}
+
+export function addSpatialPolygonRoom(state, room = {}) {
+  const next = createSpatialEditorState(state);
+  const id = uniqueSpatialRoomId(room.id, next);
+  const name = String(room.name ?? "").trim() || "新房间";
+  const points = Array.isArray(room.points) && room.points.length >= 3
+    ? room.points.map(p => ({ x: clampPercent(p.x), y: clampPercent(p.y) }))
+    : defaultPolygonPoints();
+  next.customRooms = [...next.customRooms, { id, name, type: room.type || "generic", mapRect: polygonToBounds(points) }];
+  next.roomNames[id] = name;
+  next.roomPolygons[id] = points;
+  return next;
+}
+
+export function updateSpatialRoomPolygon(state, roomId, points) {
+  const next = createSpatialEditorState(state);
+  if (!roomId || !Array.isArray(points) || points.length < 3) return next;
+  next.roomPolygons[roomId] = points.map(p => ({ x: clampPercent(p.x), y: clampPercent(p.y) }));
+  next.customRooms = next.customRooms.map((room) =>
+    room.id === roomId ? { ...room, mapRect: polygonToBounds(next.roomPolygons[roomId]) } : room
+  );
+  next.roomRects[roomId] = next.customRooms.find(r => r.id === roomId)?.mapRect ?? next.roomRects[roomId];
+  return next;
+}
+
+export function removeSpatialPolygon(state, roomId) {
+  const next = createSpatialEditorState(state);
+  if (!roomId) return next;
+  delete next.roomPolygons[roomId];
+  return next;
+}
+
 function normalizeEditorRooms(sceneRooms, state) {
   const bounds = calculateSceneBounds(sceneRooms);
   const baseRooms = sceneRooms.map((room) => {
     const overrideRect = state.roomRects[room.id];
+    const polygon = state.roomPolygons[room.id];
     const mapRect = overrideRect ?? mapSceneRoomToEditorRect(room, bounds);
     const geometry = overrideRect ? editorRectToSceneRoom(mapRect, bounds) : {};
+    const polygonScenePoints = polygon ? editorPolygonToScenePoints(polygon, bounds) : null;
     return {
       ...room,
       ...geometry,
       editorName: state.roomNames[room.id] || room.name,
       mapRect,
+      polygon: polygon ?? null,
+      polygonScenePoints,
       custom: false,
-      spatialSource: overrideRect ? "editor" : room.spatialSource,
+      spatialSource: overrideRect || polygon ? "editor" : room.spatialSource,
     };
   });
   const customRooms = state.customRooms.map((room) => {
     const mapRect = state.roomRects[room.id] ?? room.mapRect;
+    const polygon = state.roomPolygons[room.id];
+    const polygonScenePoints = polygon ? editorPolygonToScenePoints(polygon, bounds) : null;
     return {
       ...editorRectToSceneRoom(mapRect, bounds),
       id: room.id,
@@ -345,12 +428,21 @@ function normalizeEditorRooms(sceneRooms, state) {
       type: room.type || "generic",
       editorName: state.roomNames[room.id] || room.name,
       mapRect,
+      polygon: polygon ?? null,
+      polygonScenePoints,
       custom: true,
       spatialSource: "editor",
       deviceCount: 0,
     };
   });
   return [...baseRooms, ...customRooms];
+}
+
+function editorPolygonToScenePoints(polygon, bounds) {
+  return polygon.map((p) => ({
+    x: roundPoint(bounds.minX + (clampPercent(p.x) / 100) * bounds.width),
+    z: roundPoint(bounds.minZ + (clampPercent(p.y) / 100) * bounds.depth),
+  }));
 }
 
 function createSpatialSuggestions({ rooms, devices, state }) {
@@ -577,6 +669,28 @@ function normalizeRectRecord(value) {
       .filter(([key, rect]) => key && rect && typeof rect === "object")
       .map(([key, rect]) => [key, normalizeEditorRect(rect)]),
   );
+}
+
+function normalizePolygonRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const result = {};
+  for (const [key, points] of Object.entries(value)) {
+    if (!key || !Array.isArray(points) || points.length < 3) continue;
+    const normalized = points
+      .filter((p) => p && typeof p === "object" && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)))
+      .map((p) => ({ x: clampPercent(p.x), y: clampPercent(p.y) }));
+    if (normalized.length >= 3) result[key] = normalized;
+  }
+  return result;
+}
+
+function defaultPolygonPoints() {
+  return [
+    { x: 40, y: 35 },
+    { x: 60, y: 35 },
+    { x: 60, y: 55 },
+    { x: 40, y: 55 },
+  ];
 }
 
 function normalizeCustomRooms(value) {
