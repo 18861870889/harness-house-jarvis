@@ -218,13 +218,15 @@ function createEndpoint({ home, spaces, thing, controller, capability, override 
           : 0.35;
   const status = ignored
     ? ENDPOINT_MAPPING_STATUS.IGNORED
-    : explicitlyUnused || !hasLightingSemantics
-      ? ENDPOINT_MAPPING_STATUS.UNBOUND
-      : remoteBinding
-        ? ENDPOINT_MAPPING_STATUS.REVIEW
-      : confirmed || mappingConfidence >= 0.84
-        ? ENDPOINT_MAPPING_STATUS.BOUND
-        : ENDPOINT_MAPPING_STATUS.REVIEW;
+    : confirmed
+      ? ENDPOINT_MAPPING_STATUS.BOUND
+      : explicitlyUnused || !hasLightingSemantics
+        ? ENDPOINT_MAPPING_STATUS.UNBOUND
+        : remoteBinding
+          ? ENDPOINT_MAPPING_STATUS.REVIEW
+        : mappingConfidence >= 0.84
+          ? ENDPOINT_MAPPING_STATUS.BOUND
+          : ENDPOINT_MAPPING_STATUS.REVIEW;
   const room = spaces.get(targetSpaceId);
   const displayName = status === ENDPOINT_MAPPING_STATUS.BOUND || status === ENDPOINT_MAPPING_STATUS.REVIEW
     ? buildAssetDisplayName(rawAssetName, room)
