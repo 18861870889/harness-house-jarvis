@@ -108,7 +108,13 @@ export function placeSpatialDevice(state, deviceId, { x, y, roomId = null } = {}
     y: clampPercent(y),
     roomId: roomId || null,
   };
-  next.deviceAssignments[deviceId] = roomId || null;
+  // Only update room assignment when a room is detected at the placement position.
+  // When roomId is null (device placed outside any room rect), preserve the existing
+  // assignment so the device retains its defaultRoomId fallback instead of being
+  // explicitly cleared to null (which causes "placed but unassigned" status).
+  if (roomId) {
+    next.deviceAssignments[deviceId] = roomId;
+  }
   return next;
 }
 
