@@ -88,7 +88,7 @@ def cmd_state(args):
 
 
 def cmd_control(args):
-    """Control a device."""
+    """Control a device with safety check, execution, and audit logging."""
     client = get_client()
     safety = SafetyChecker()
     audit = AuditLogger()
@@ -96,28 +96,34 @@ def cmd_control(args):
     entity_id = args.entity_id
     action = args.action
     value = args.value
+    confirmed = getattr(args, "confirmed", False)
 
     start = time.time()
 
     # 1. Safety check
     check = safety.check(entity_id, action)
     if not check["allowed"]:
-        audit.log(
-            entity_id=entity_id,
-            action=action,
-            result="blocked",
-            risk_level=check["level"],
-            reason=check["reason"],
-            value=value or "",
-        )
-        print(json.dumps({
-            "entity_id": entity_id,
-            "action": action,
-            "status": "blocked",
-            "level": check["level"],
-            "reason": check["reason"],
-        }, ensure_ascii=False, indent=2))
-        return
+        # If needs confirmation and user confirmed, proceed
+        if check.get("needs_confirmation") and confirmed:
+            pass  # Fall through to execution
+        else:
+            audit.log(
+                entity_id=entity_id,
+                action=action,
+                result="blocked",
+                risk_level=check["level"],
+                reason=check["reason"],
+                value=value or "",
+            )
+            print(json.dumps({
+                "entity_id": entity_id,
+                "action": action,
+                "status": "blocked",
+                "level": check["level"],
+                "reason": check["reason"],
+                "needs_confirmation": check.get("needs_confirmation", False),
+            }, ensure_ascii=False, indent=2))
+            return
 
     # 2. Determine domain and service
     domain = entity_id.split(".")[0] if "." in entity_id else ""
@@ -150,10 +156,11 @@ def cmd_control(args):
     try:
         client.call_service(domain, service, service_data)
         latency = int((time.time() - start) * 1000)
+        result_label = "confirmed" if (check.get("needs_confirmation") and confirmed) else "executed"
         audit.log(
             entity_id=entity_id,
             action=action,
-            result="executed",
+            result=result_label,
             latency_ms=latency,
             risk_level=check["level"],
             value=value or "",
@@ -161,7 +168,7 @@ def cmd_control(args):
         print(json.dumps({
             "entity_id": entity_id,
             "action": action,
-            "status": "executed",
+            "status": result_label,
             "service": f"{domain}.{service}",
             "latency_ms": latency,
         }, ensure_ascii=False, indent=2))
@@ -218,6 +225,7 @@ def main():
     sub_control.add_argument("entity_id", help="Entity ID")
     sub_control.add_argument("action", help="Action (turn_on, turn_off, set_temperature, etc.)")
     sub_control.add_argument("--value", default="", help="Value for set_* actions")
+    sub_control.add_argument("--confirmed", action="store_true", help="User confirmation for need_confirm devices")
 
     sub_safety = sub.add_parser("safety", help="Get or set safety level")
     sub_safety.add_argument("entity_id", help="Entity ID")
