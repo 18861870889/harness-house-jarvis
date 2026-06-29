@@ -25,6 +25,14 @@ from aiohttp import web, ClientSession, WSMsgType
 # ── Config ──
 
 HA_BASE_URL = os.environ.get("HA_BASE_URL", "http://homeassistant.local:8123")
+# Resolve mDNS hostname to IP at startup to avoid thread pool DNS issues
+import socket as _socket
+try:
+    _ha_host = HA_BASE_URL.split("//")[1].split(":")[0].split("/")[0]
+    _ha_ip = _socket.gethostbyname(_ha_host)
+    HA_BASE_URL = HA_BASE_URL.replace(_ha_host, _ha_ip)
+except Exception:
+    pass  # Fall back to original URL if resolution fails
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
 PROXY_PORT = int(os.environ.get("PROXY_PORT", "8080"))
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web")
@@ -115,36 +123,50 @@ async def ha_control(request: web.Request) -> web.Response:
         else:
             service_data[action.replace("set_", "")] = value
     
-    # Call HA
+    # Call HA — use requests in a thread to avoid event loop contention
+    # with the SSE WebSocket bridge running in the same loop
     url = f"{HA_BASE_URL}/api/services/{domain}/{service}"
     headers = {"Authorization": f"Bearer {HA_TOKEN}", "Content-Type": "application/json"}
     
-    async with ClientSession() as session:
-        async with session.post(url, headers=headers, json=service_data, timeout=10) as resp:
-            latency = int((time.time() - start) * 1000)
-            result_label = "confirmed" if (check.get("needs_confirmation") and confirmed) else "executed"
-            
-            if resp.status == 200:
-                audit.log(
-                    entity_id=entity_id, action=action, result=result_label,
-                    latency_ms=latency, risk_level=check["level"], value=str(value),
-                )
-                return web.json_response({
-                    "status": result_label,
-                    "service": f"{domain}.{service}",
-                    "latency_ms": latency,
-                })
-            else:
-                body = await resp.text()
-                audit.log(
-                    entity_id=entity_id, action=action, result="error",
-                    latency_ms=latency, risk_level=check["level"],
-                    reason=body, value=str(value),
-                )
-                return web.json_response(
-                    {"status": "error", "error": body},
-                    status=resp.status,
-                )
+    import requests as _requests
+    
+    def _do_ha_post():
+        return _requests.post(url, headers=headers, json=service_data, timeout=10)
+    
+    try:
+        resp = await asyncio.to_thread(_do_ha_post)
+        latency = int((time.time() - start) * 1000)
+        result_label = "confirmed" if (check.get("needs_confirmation") and confirmed) else "executed"
+        
+        if resp.status_code == 200:
+            audit.log(
+                entity_id=entity_id, action=action, result=result_label,
+                latency_ms=latency, risk_level=check["level"], value=str(value),
+            )
+            return web.json_response({
+                "status": result_label,
+                "service": f"{domain}.{service}",
+                "latency_ms": latency,
+            })
+        else:
+            body = resp.text
+            audit.log(
+                entity_id=entity_id, action=action, result="error",
+                latency_ms=latency, risk_level=check["level"],
+                reason=body, value=str(value),
+            )
+            return web.json_response(
+                {"status": "error", "error": body},
+                status=resp.status_code,
+            )
+    except Exception as e:
+        latency = int((time.time() - start) * 1000)
+        audit.log(
+            entity_id=entity_id, action=action, result="error",
+            latency_ms=latency, risk_level=check["level"],
+            reason=str(e), value=str(value),
+        )
+        return web.json_response({"status": "error", "error": str(e)}, status=500)
 
 
 # ── SSE Bridge ──

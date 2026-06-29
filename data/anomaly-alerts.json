@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-06-29T14:44:27+0800",
+  "alerts": [
+    {
+      "rule": "lights_on_daytime",
+      "entity_id": "light.xiaomi_cn_1141013939_hub1_s_3_indicator_light",
+      "name": "小米中枢网关  指示灯",
+      "state": "on",
+      "message": "白天灯开着: 小米中枢网关  指示灯 (light.xiaomi_cn_1141013939_hub1_s_3_indicator_light)",
+      "severity": "low"
+    },
+    {
+      "rule": "lights_on_daytime",
+      "entity_id": "light.xiaomi_cn_818777758_rd18_s_5_indicator_light",
+      "name": "客厅路由器  指示灯",
+      "state": "on",
+      "message": "白天灯开着: 客厅路由器  指示灯 (light.xiaomi_cn_818777758_rd18_s_5_indicator_light)",
+      "severity": "low"
+    },
+    {
+      "rule": "lights_on_daytime",
+      "entity_id": "light.dmaker_cn_507907714_p8_s_5_indicator_light",
+      "name": "风扇  指示灯",
+      "state": "on",
+      "message": "白天灯开着: 风扇  指示灯 (light.dmaker_cn_507907714_p8_s_5_indicator_light)",
+      "severity": "low"
+    },
+    {
+      "rule": "lights_on_daytime",
+      "entity_id": "light.chuangmi_cn_450423928_036a02_s_3_indicator_light",
+      "name": "猫猫的监控  指示灯",
+      "state": "on",
+      "message": "白天灯开着: 猫猫的监控  指示灯 (light.chuangmi_cn_450423928_036a02_s_3_indicator_light)",
+      "severity": "low"
+    },
+    {
+      "rule": "lights_on_daytime",
+      "entity_id": "light.xiaomi_cn_993783454_p51_s_5_indicator_light",
+      "name": "风扇  指示灯",
+      "state": "on",
+      "message": "白天灯开着: 风扇  指示灯 (light.xiaomi_cn_993783454_p51_s_5_indicator_light)",
+      "severity": "low"
+    }
+  ]
+}
