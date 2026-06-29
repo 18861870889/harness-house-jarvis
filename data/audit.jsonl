@@ -1,0 +1,1 @@
+{"timestamp": "2026-06-29T10:33:54+0800", "epoch": 1782700434, "entity_id": "switch.fridge", "action": "turn_on", "value": "", "result": "blocked", "latency_ms": 0, "risk_level": "block", "reason": "设备 switch.fridge 安全级别为 block，禁止自动控制"}
