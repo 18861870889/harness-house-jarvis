@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-06-29T12:38:03+0800",
+  "suggestions": [
+    {
+      "description": "每天22点关 light.test",
+      "confidence": 0.8,
+      "frequency": 5
+    }
+  ],
+  "context": "常用设备: light.test(5次)"
+}
