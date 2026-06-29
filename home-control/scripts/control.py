@@ -41,15 +41,43 @@ def get_client() -> HAClient:
 
 
 def cmd_list(args):
-    """List all devices with their states."""
+    """List all devices with their states.
+
+    By default fetches from REST API (full snapshot). With --cache, uses
+    the in-memory WebSocket state cache (instant, no HA API call).
+    """
     client = get_client()
-    states = client.get_states()
     safety = SafetyChecker()
 
+    # Use cache or REST
+    if getattr(args, "cache", False):
+        client.init_state_cache()
+        raw_states = list(client.get_all_cached_states().values())
+    else:
+        raw_states = client.get_states()
+
+    # Domain filter
+    domain_filter = getattr(args, "domain", None)
+
+    # Only show controllable domains (not sensors, numbers, etc.)
+    controllable_domains = {
+        "switch", "light", "climate", "cover", "fan", "lock",
+        "media_player", "vacuum", "button", "select", "input_boolean",
+    }
+
     devices = []
-    for s in states:
+    for s in raw_states:
         eid = s.get("entity_id", "")
         domain = eid.split(".")[0] if "." in eid else ""
+
+        # Apply domain filter
+        if domain_filter and domain != domain_filter:
+            continue
+
+        # Skip non-controllable domains unless --all
+        if not getattr(args, "all", False) and domain not in controllable_domains:
+            continue
+
         devices.append({
             "entity_id": eid,
             "name": s.get("attributes", {}).get("friendly_name", eid),
@@ -58,8 +86,8 @@ def cmd_list(args):
             "safety": safety.get_safety_level(eid),
         })
 
-    # Sort: lights first, then by name
-    devices.sort(key=lambda d: (d["domain"] != "switch" and d["domain"] != "light", d["name"]))
+    # Sort: by domain, then by name
+    devices.sort(key=lambda d: (d["domain"], d["name"]))
     print(json.dumps({"count": len(devices), "devices": devices}, ensure_ascii=False, indent=2))
 
 
@@ -216,7 +244,10 @@ def main():
     parser = argparse.ArgumentParser(description="Home Control CLI")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("list", help="List all devices")
+    sub_list = sub.add_parser("list", help="List all devices")
+    sub_list.add_argument("--cache", action="store_true", help="Use WebSocket state cache instead of REST API")
+    sub_list.add_argument("--domain", default=None, help="Filter by domain (e.g., light, switch, climate)")
+    sub_list.add_argument("--all", action="store_true", help="Show all entities including sensors")
     sub.add_parser("states", help="All device states (cache)")
     sub_state = sub.add_parser("state", help="Single device state")
     sub_state.add_argument("entity_id", help="Entity ID (e.g., switch.xxx)")
