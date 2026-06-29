@@ -24,6 +24,13 @@ HA_WS_URL = HA_BASE_URL.replace("http://", "ws://").replace("https://", "wss://"
 class HAClient:
     """Home Assistant client with WebSocket state cache and REST execution."""
 
+    # Connection states for observability
+    WS_DISCONNECTED = "disconnected"
+    WS_CONNECTING = "connecting"
+    WS_CONNECTED = "connected"
+    WS_AUTH_FAILED = "auth_failed"
+    WS_RECONNECTING = "reconnecting"
+
     def __init__(self, base_url: str = HA_BASE_URL, token: str = HA_TOKEN):
         self.base_url = base_url.rstrip("/")
         self.token = token
@@ -31,7 +38,14 @@ class HAClient:
         self._state_cache: dict[str, dict] = {}
         self._ws_thread: threading.Thread | None = None
         self._ws_running = False
+        self._ws_state = self.WS_DISCONNECTED
+        self._reconnect_count = 0
         self._lock = threading.Lock()
+
+    @property
+    def ws_state(self) -> str:
+        """Current WebSocket connection state."""
+        return self._ws_state
 
     # ── REST API ──
 
@@ -94,9 +108,9 @@ class HAClient:
             return self._state_cache.get(entity_id)
 
     def get_all_cached_states(self) -> dict[str, dict]:
-        """Get all cached states."""
+        """Get all cached states (shallow copy of outer dict, inner dicts are copies)."""
         with self._lock:
-            return dict(self._state_cache)
+            return {k: dict(v) if isinstance(v, dict) else v for k, v in self._state_cache.items()}
 
     def _update_cache(self, entity_id: str, state: dict) -> None:
         """Update a single entity in the cache (called from WebSocket listener)."""
@@ -116,13 +130,24 @@ class HAClient:
             self._ws_thread.join(timeout=5)
 
     def _ws_loop(self) -> None:
-        """WebSocket event loop (runs in background thread)."""
+        """WebSocket event loop (runs in background thread) with reconnection."""
         while self._ws_running:
             try:
+                self._ws_state = self.WS_CONNECTING
                 asyncio.run(self._ws_connect())
+                # Normal exit — loop ended (stop_ws_listener called)
+                self._ws_state = self.WS_DISCONNECTED
+            except AuthError:
+                self._ws_state = self.WS_AUTH_FAILED
+                print("[HA WS] Auth failed — check HA_TOKEN. Not retrying.")
+                self._ws_running = False
+                break
             except Exception as e:
-                print(f"[HA WS] Connection error: {e}, reconnecting in 5s...")
-                time.sleep(5)
+                self._ws_state = self.WS_RECONNECTING
+                self._reconnect_count += 1
+                delay = min(5 * (2 ** (self._reconnect_count - 1)), 60)
+                print(f"[HA WS] Connection error: {e}, reconnecting in {delay}s... (attempt {self._reconnect_count})")
+                time.sleep(delay)
 
     async def _ws_connect(self) -> None:
         """Connect to HA WebSocket, authenticate, and subscribe to state_changed events."""
@@ -142,9 +167,13 @@ class HAClient:
                 # Wait for auth ok
                 msg = await ws.receive(timeout=10)
                 data = json.loads(msg.data)
+                if data.get("type") == "auth_invalid":
+                    raise AuthError(f"HA rejected token: {data.get('message', 'unknown')}")
                 if data.get("type") != "auth_ok":
-                    raise RuntimeError(f"Auth failed: {data.get('type')}")
+                    raise RuntimeError(f"Unexpected auth response: {data.get('type')}")
 
+                self._ws_state = self.WS_CONNECTED
+                self._reconnect_count = 0  # Reset on successful connect
                 print("[HA WS] Connected and authenticated")
 
                 # Subscribe to state_changed events
@@ -159,13 +188,34 @@ class HAClient:
                     msg = await ws.receive(timeout=30)
                     if msg.type == aiohttp.WSMsgType.TEXT:
                         data = json.loads(msg.data)
-                        if data.get("type") == "event" and data.get("event", {}).get("event_type") == "state_changed":
-                            event_data = data["event"]["data"]
-                            entity_id = event_data.get("entity_id")
-                            new_state = event_data.get("new_state")
-                            if entity_id and new_state:
-                                self._update_cache(entity_id, new_state)
+                        self._process_ws_message(data)
                     elif msg.type == aiohttp.WSMsgType.CLOSED:
                         break
                     elif msg.type == aiohttp.WSMsgType.ERROR:
                         break
+
+    def _process_ws_message(self, data: dict) -> None:
+        """Process a single WebSocket message — update cache if it's a state_changed event.
+
+        Extracted as a separate method for unit testing (no live WebSocket needed).
+        Safely handles malformed messages (missing keys, None values).
+        """
+        if not isinstance(data, dict):
+            return
+        if data.get("type") != "event":
+            return
+        event = data.get("event", {})
+        if not isinstance(event, dict) or event.get("event_type") != "state_changed":
+            return
+        event_data = event.get("data", {})
+        if not isinstance(event_data, dict):
+            return
+        entity_id = event_data.get("entity_id")
+        new_state = event_data.get("new_state")
+        if entity_id and new_state:
+            self._update_cache(entity_id, new_state)
+
+
+class AuthError(RuntimeError):
+    """Raised when HA WebSocket auth fails — should not retry."""
+    pass
