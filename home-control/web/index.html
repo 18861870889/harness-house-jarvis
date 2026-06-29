@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 20px; }
+        .status-bar { display: flex; justify-content: space-between; padding: 10px; background: #16213e; border-radius: 8px; margin-bottom: 20px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .status-dot.online { background: #4CAF50; }
+        .status-dot.offline { background: #f44336; }
+        .device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .device-card { background: #16213e; border-radius: 12px; padding: 16px; cursor: pointer; transition: transform 0.2s; }
+        .device-card:hover { transform: translateY(-2px); }
+        .device-card.on { border: 2px solid #4CAF50; }
+        .device-card.off { border: 2px solid #333; }
+        .device-card.blocked { opacity: 0.5; }
+        .device-name { font-size: 14px; margin-bottom: 8px; }
+        .device-state { font-size: 20px; font-weight: bold; }
+        .device-state.on { color: #4CAF50; }
+        .device-state.off { color: #666; }
+        .device-domain { font-size: 11px; color: #888; margin-top: 4px; }
+        .safety-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+        .safety-badge.allow_auto { background: #2d4a2d; color: #4CAF50; }
+        .safety-badge.need_confirm { background: #4a3d2d; color: #FF9800; }
+        .safety-badge.block { background: #4a2d2d; color: #f44336; }
+        .filter-bar { margin-bottom: 16px; }
+        .filter-bar input { background: #16213e; border: 1px solid #333; color: #eee; padding: 8px 12px; border-radius: 8px; width: 100%; }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #16213e; padding: 12px 24px; border-radius: 8px; display: none; z-index: 100; }
+        .toast.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 Home Control</h1>
+        <div class="status-bar">
+            <span><span class="status-dot offline" id="ws-dot"></span>WebSocket</span>
+            <span>SSE Clients: <span id="sse-count">0</span></span>
+            <span id="device-count">0 devices</span>
+        </div>
+        <div class="filter-bar">
+            <input type="text" id="search" placeholder="搜索设备名称或 entity_id..." oninput="filterDevices()">
+        </div>
+        <div class="device-grid" id="device-grid"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let devices = [];
+        let sse = null;
+
+        async function fetchDevices() {
+            try {
+                const resp = await fetch('/api/ha/states');
+                const states = await resp.json();
+                devices = states.filter(s => {
+                    const d = s.entity_id.split('.')[0];
+                    return ['switch','light','climate','cover','fan','lock','vacuum','button'].includes(d);
+                }).map(s => ({
+                    entity_id: s.entity_id,
+                    name: s.attributes?.friendly_name || s.entity_id,
+                    state: s.state,
+                    domain: s.entity_id.split('.')[0],
+                }));
+                renderDevices();
+                document.getElementById('device-count').textContent = `${devices.length} devices`;
+            } catch (e) {
+                showToast('获取设备列表失败: ' + e.message);
+            }
+        }
+
+        function renderDevices() {
+            const grid = document.getElementById('device-grid');
+            const search = document.getElementById('search').value.toLowerCase();
+            const filtered = devices.filter(d => 
+                d.name.toLowerCase().includes(search) || d.entity_id.toLowerCase().includes(search)
+            );
+            grid.innerHTML = filtered.map(d => {
+                const isOn = d.state === 'on' || d.state === 'cool' || d.state === 'heat' || d.state === 'open';
+                const stateClass = isOn ? 'on' : 'off';
+                return `<div class="device-card ${stateClass}" onclick="toggleDevice('${d.entity_id}','${d.state}')">
+                    <div class="device-name">${d.name}</div>
+                    <div class="device-state ${stateClass}">${d.state}</div>
+                    <div class="device-domain">${d.domain} · ${d.entity_id}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function filterDevices() { renderDevices(); }
+
+        async function toggleDevice(entityId, currentState) {
+            const action = currentState === 'on' || currentState === 'cool' ? 'turn_off' : 'turn_on';
+            try {
+                const resp = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({entity_id: entityId, action: action}),
+                });
+                const result = await resp.json();
+                if (result.status === 'blocked') {
+                    if (result.needs_confirmation) {
+                        if (confirm(`设备需要确认：${result.reason}\n\n确认执行？`)) {
+                            await fetch('/api/control', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({entity_id: entityId, action: action, confirmed: true}),
+                            });
+                        }
+                    } else {
+                        showToast(`已阻止: ${result.reason}`);
+                    }
+                } else if (result.status === 'executed' || result.status === 'confirmed') {
+                    showToast(`✅ ${entityId}: ${action} (${result.latency_ms}ms)`);
+                }
+            } catch (e) {
+                showToast('控制失败: ' + e.message);
+            }
+        }
+
+        function connectSSE() {
+            sse = new EventSource('/api/sse');
+            sse.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'connected') {
+                    document.getElementById('ws-dot').className = 'status-dot ' + (data.ws_connected ? 'online' : 'offline');
+                    return;
+                }
+                // Update device state
+                const device = devices.find(d => d.entity_id === data.entity_id);
+                if (device && data.new_state) {
+                    device.state = data.new_state.state;
+                    renderDevices();
+                }
+            };
+        }
+
+        async function checkHealth() {
+            try {
+                const resp = await fetch('/api/health');
+                const health = await resp.json();
+                document.getElementById('ws-dot').className = 'status-dot ' + (health.ws_connected ? 'online' : 'offline');
+                document.getElementById('sse-count').textContent = health.sse_clients;
+            } catch (e) {}
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Init
+        fetchDevices();
+        connectSSE();
+        setInterval(checkHealth, 5000);
+    </script>
+</body>
+</html>
