@@ -22,6 +22,9 @@ export function compileHcmForPlanner(
   { input = "", currentRoomId, selectedRoomId, focusTargetIds = [], focusRoomIds = [], limit = 80 } = {},
 ) {
   if (!home?.things) return [];
+  if (/卧室|睡房/.test(input)
+    && !home.spaces?.some((space) => /主卧|次卧|儿童房/.test(space.name) && input.includes(space.name))
+    && bedroomClarificationOptions(home).length > 1) return [];
   const preferredSpaces = new Set([currentRoomId, selectedRoomId, ...focusRoomIds].filter(Boolean));
   const focusedTargets = new Set(focusTargetIds);
   const focusedRooms = new Set(focusRoomIds);
@@ -156,15 +159,17 @@ function hasRoomPlannerDevices(home, roomId) {
   return (home?.things ?? []).some((thing) => thing.spaceId === roomId && compileThing(thing).capabilities.length > 0);
 }
 
-export function normalizeHcmPlannerDraft(input, draft, home) {
+export function normalizeHcmPlannerDraft(input, draft, home, { strictSelection = false } = {}) {
   const intentFrame = normalizeIntentFrame(input, draft);
-  const semanticActions = normalizeSemanticPlannerActions(intentFrame.actions, { input, home });
+  const semanticActions = strictSelection
+    ? { actions: intentFrame.actions, rejected: [] }
+    : normalizeSemanticPlannerActions(intentFrame.actions, { input, home });
   const normalizedDraft = {
     ...draft,
     intent_type: intentFrame.intentType,
     query: intentFrame.query ?? draft?.query,
   };
-  const correctionPlan = maybeCorrectionFeedbackPlan(input, normalizedDraft);
+  const correctionPlan = strictSelection ? null : maybeCorrectionFeedbackPlan(input, normalizedDraft);
   if (correctionPlan) {
     return attachSemanticDiagnostics(correctionPlan, {
       input,
@@ -176,7 +181,7 @@ export function normalizeHcmPlannerDraft(input, draft, home) {
       home,
     });
   }
-  const preferencePlan = maybePreferenceFeedbackPlan(input, normalizedDraft);
+  const preferencePlan = strictSelection ? null : maybePreferenceFeedbackPlan(input, normalizedDraft);
   if (preferencePlan) {
     return attachSemanticDiagnostics(preferencePlan, {
       input,
@@ -193,7 +198,7 @@ export function normalizeHcmPlannerDraft(input, draft, home) {
   let normalizedActions = [];
   const rejected = [...semanticActions.rejected];
   const requestedIntentType = normalizeIntentType(intentFrame.intentType, [], null);
-  const controlRequested = CONTROL_REQUEST_PATTERN.test(input) || ["device_control", "scene"].includes(requestedIntentType);
+  const controlRequested = (!strictSelection && CONTROL_REQUEST_PATTERN.test(input)) || ["device_control", "scene"].includes(requestedIntentType);
 
   for (const action of actions) {
     const result = resolvePlannerAction(input, action, home);
@@ -203,25 +208,27 @@ export function normalizeHcmPlannerDraft(input, draft, home) {
     }
     normalizedActions.push(toNormalizedAction(result, action));
   }
-  normalizedActions = applyLightingComfortPolicy(input, normalizedActions, home, rejected);
-  if (normalizedActions.length === 0 && controlRequested) {
+  if (!strictSelection) normalizedActions = applyLightingComfortPolicy(input, normalizedActions, home, rejected);
+  if (!strictSelection && normalizedActions.length === 0 && controlRequested) {
     normalizedActions.push(...resolveResidualGroupActions(input, home));
   }
-  const groupResolution = expandNumberedAssetGroup(input, normalizedActions, home);
+  const groupResolution = strictSelection
+    ? { actions: normalizedActions, blocked: false, satisfied: false, unresolved: [], groups: [] }
+    : expandNumberedAssetGroup(input, normalizedActions, home);
   const resolvedActions = groupResolution.blocked ? [] : groupResolution.actions;
   if (groupResolution.blocked) rejected.push(...groupResolution.unresolved.map((item) => `${item.name} 没有已确认的可执行控制通道`));
-  const capabilityQuery = resolvedActions.length === 0 && !controlRequested
-    ? answerHcmCapabilityQuery(input, home, normalizedDraft?.query?.reason)
+  const capabilityQuery = resolvedActions.length === 0 && !controlRequested && (!strictSelection || requestedIntentType === "inventory_query")
+    ? answerHcmCapabilityQuery(input, home, normalizedDraft?.query?.reason, { explicitRequest: strictSelection && requestedIntentType === "inventory_query" })
     : null;
-  const inventoryQuery = resolvedActions.length === 0 && !controlRequested && !capabilityQuery && looksLikeInventoryQuery(input)
+  const inventoryQuery = resolvedActions.length === 0 && !controlRequested && !capabilityQuery && looksLikeInventoryQuery(input) && (!strictSelection || requestedIntentType === "inventory_query")
     ? answerHcmInventoryQuery(input, home, normalizedDraft?.query?.reason)
     : null;
   const roomLightStateQuery =
-    resolvedActions.length === 0 && !controlRequested && !capabilityQuery && !inventoryQuery && requestedIntentType === "state_query"
+    resolvedActions.length === 0 && !controlRequested && !capabilityQuery && !inventoryQuery && requestedIntentType === "state_query" && !(strictSelection && hasStateQueryTarget(normalizedDraft))
       ? answerHcmRoomLightStateQuery(input, home, normalizedDraft?.query?.reason)
       : null;
   const selectedStateQuery =
-    resolvedActions.length === 0 && !controlRequested && !capabilityQuery && !inventoryQuery && !roomLightStateQuery && requestedIntentType === "state_query" && looksLikeStateQuery(input) && hasStateQueryTarget(normalizedDraft)
+    resolvedActions.length === 0 && !controlRequested && !capabilityQuery && !inventoryQuery && !roomLightStateQuery && requestedIntentType === "state_query" && (strictSelection || looksLikeStateQuery(input)) && hasStateQueryTarget(normalizedDraft)
       ? resolvePlannerStateQuery(input, normalizedDraft, home, rejected)
       : null;
   const occupancyStateQuery =
@@ -575,7 +582,7 @@ function toNormalizedAction(result, action) {
     providerThingName: result.logicalAsset ? result.thing.name : undefined,
     logicalAssetId: result.logicalAsset?.id,
     logicalAssetName: result.logicalAsset?.name,
-    logicalRoomId: result.logicalAsset?.spaceId,
+    logicalRoomId: result.logicalAsset?.spaceId ?? result.thing.spaceId,
     capabilityId: result.capability.id,
     capabilityName: result.logicalAsset ? `${result.logicalAsset.name}开关` : result.capability.name,
     value: normalizePlannerValue(action.value, result.capability),

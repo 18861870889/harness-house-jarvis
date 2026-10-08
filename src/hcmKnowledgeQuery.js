@@ -1,4 +1,4 @@
-import { findExplicitRoomIds, getHcmControlGraph } from "./hcmControlGraph.js";
+import { findExplicitRoomIds, getHcmControlGraph, resolveControlAsset } from "./hcmControlGraph.js";
 
 const INVENTORY_PATTERN = /几个|多少个|有哪些|有什么|列出|数量|设备清单/;
 const CAPABILITY_QUERY_PATTERN = /如何控制|怎么控制|怎样控制|怎么用|能做什么|可控制|控制功能|支持.*(什么|哪些)|有哪些.*(能力|功能|操作|控制)/;
@@ -12,8 +12,8 @@ export function looksLikeCapabilityQuery(input) {
   return CAPABILITY_QUERY_PATTERN.test(String(input ?? ""));
 }
 
-export function answerHcmCapabilityQuery(input, home, reason = "") {
-  if (!looksLikeCapabilityQuery(input) || !home) return null;
+export function answerHcmCapabilityQuery(input, home, reason = "", { explicitRequest = false } = {}) {
+  if ((!explicitRequest && !looksLikeCapabilityQuery(input)) || !home) return null;
   const targets = findCapabilityQueryTargets(input, home);
   if (targets.length === 0) return null;
   if (targets.length > 1) {
@@ -105,8 +105,14 @@ function inventoryItems(home) {
 function findCapabilityQueryTargets(input, home) {
   const text = normalize(input);
   const candidates = inventoryItems(home)
-    .filter((item) => item.source === "thing")
-    .map((item) => home.things.find((thing) => thing.id === item.id))
+    .map((item) => {
+      if (item.source === "thing") return home.things.find((thing) => thing.id === item.id);
+      const logical = resolveControlAsset(home, item.id);
+      return logical?.asset ? {
+        ...logical.asset,
+        capabilities: logical.capability ? [{ ...logical.capability, name: "控制回路开关" }] : [],
+      } : null;
+    })
     .filter(Boolean);
   const exact = candidates.filter((thing) => nameMatchesInput(thing, text, "exact"));
   if (exact.length > 0) return exact;

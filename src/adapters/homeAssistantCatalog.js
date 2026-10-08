@@ -179,9 +179,9 @@ function mapEntityToCapabilities({ entity, state, thingType, device }) {
       },
       commands: serviceCandidatesForDomain(domain),
       constraints: {
-        min: state?.attributes?.min,
-        max: state?.attributes?.max,
-        step: state?.attributes?.step,
+        min: state?.attributes?.min ?? state?.attributes?.min_temp,
+        max: state?.attributes?.max ?? state?.attributes?.max_temp,
+        step: state?.attributes?.step ?? state?.attributes?.target_temp_step,
         unit: state?.attributes?.unit_of_measurement,
       },
       confidence: state ? 0.95 : 0.72,

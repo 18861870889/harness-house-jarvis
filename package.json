@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node server.mjs",
+    "demo:d1": "node scripts/start-d1-demo.mjs",
+    "test:d1:live": "node scripts/test-d1-live.mjs",
     "dev:vite": "vite --host 0.0.0.0",
     "build": "vite build",
     "test": "vitest run",

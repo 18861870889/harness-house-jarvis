@@ -795,6 +795,11 @@ export default function App() {
           return;
         }
       } catch (error) {
+        if (llmStatus.provider === "local-d1") {
+          setMessages((current) => [...current, makeMessage("assistant", `没有执行设备：${error.message}`)]);
+          setProcessing(false);
+          return;
+        }
         setLogs((current) => [
           {
             id: crypto.randomUUID(),
@@ -805,6 +810,12 @@ export default function App() {
           ...current,
         ]);
       }
+    }
+
+    if (llmStatus.provider === "local-d1") {
+      setMessages((current) => [...current, makeMessage("assistant", "D1 指令链路暂不可用，没有操作设备。请确认模拟家庭已加载后重试。")]);
+      setProcessing(false);
+      return;
     }
 
     const pipeline = await planCommand({
@@ -892,6 +903,7 @@ export default function App() {
 
     setLastPlan({
       id: result.commandId,
+      decisionBackend: result.planner?.backend,
       kind: "real_hcm",
       path: "hcm-real",
       intent: result.plan?.intent ?? "real_hcm",
@@ -1154,7 +1166,7 @@ export default function App() {
         <RailHeader
           eyebrow="Runtime"
           title="意图与执行"
-          meta="Hermes · glm-5.2"
+          meta={llmStatus.provider === "local-d1" ? `D1 · ${llmStatus.model}` : "Hermes · glm-5.2"}
           icon={Bot}
         />
         <CommandConsole
@@ -1174,6 +1186,8 @@ export default function App() {
             effectiveMode: effectiveCommandMode,
             realAvailable: realExecutionAvailable,
             backendMode: runtimeStatus?.execution?.mode ?? "unknown",
+            simulated: Boolean(llmStatus.simulatedDevices),
+            backend: llmStatus.provider,
           }}
           onExecutionPreferenceChange={setExecutionPreference}
         />
@@ -1246,7 +1260,7 @@ function Header({ currentRoomId, activeCount, llmStatus, runtimeStatus, sceneRoo
       </div>
       <div className={`status-pill execution-${executionMode?.mode ?? "unknown"}`}>
         <span className="live-dot" />
-        {executionMode?.mode === "real" ? "Real" : "Dry-run"}
+        {runtimeStatus?.simulated ? "模拟设备" : executionMode?.mode === "real" ? "Real" : "Dry-run"}
       </div>
       <div className="view-switch" role="group" aria-label="工作区">
         <button
@@ -1283,7 +1297,7 @@ function Header({ currentRoomId, activeCount, llmStatus, runtimeStatus, sceneRoo
         <Fact
           icon={Sparkles}
           label="控制大脑"
-          value="Hermes · glm-5.2"
+          value={llmStatus.provider === "local-d1" ? `D1 · ${llmStatus.model}` : "Hermes · glm-5.2"}
         />
         <Fact
           icon={ShieldCheck}
@@ -3218,6 +3232,11 @@ function CommandConsole({
   } else if (realAvailable) {
     executionHint = "后端已允许 Real，本次仍模拟";
   }
+  if (executionControl?.backend === "local-d1") {
+    executionHint = executionControl.simulated
+      ? effectiveReal ? "D1 · 内存模拟执行" : "D1 · 仅预览，不改变模拟状态"
+      : effectiveReal ? "D1 · 真实控制低风险设备" : "D1 · 仅预览";
+  }
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -3264,16 +3283,16 @@ function CommandConsole({
             onClick={() => onExecutionPreferenceChange(COMMAND_EXECUTION_PREFERENCE.DRY_RUN)}
             title="只做计划、模拟、审计，不控制真实设备"
           >
-            模拟
+            {executionControl?.simulated ? "预览" : "模拟"}
           </button>
           <button
             className={realSelected ? "selected" : ""}
             type="button"
             onClick={() => onExecutionPreferenceChange(COMMAND_EXECUTION_PREFERENCE.REAL)}
             disabled={!realAvailable}
-            title={realAvailable ? "允许通过安全链路后的低风险动作真实执行" : "需要先设置 HARNESS_EXECUTION_MODE=real 并重启服务"}
+            title={executionControl?.simulated ? "只改变内存中的模拟设备状态，不连接真实 HA" : realAvailable ? "允许通过安全链路后的低风险动作真实执行" : "需要先设置 HARNESS_EXECUTION_MODE=real 并重启服务"}
           >
-            真实
+            {executionControl?.simulated ? "模拟执行" : "真实"}
           </button>
         </div>
       </div>
@@ -3354,7 +3373,7 @@ function PlanPreview({ plan }) {
         <ShieldCheck size={17} />
         <h2>Plan</h2>
         <span className={`path-badge ${plan.path === "fast" ? "fast" : "llm"}`}>
-          {plan.path === "fast" ? "Fast Path" : plan.path === "llm-real" ? "LLM Real" : "LLM Sim"}
+          {plan.decisionBackend === "local-d1" ? "D1" : plan.path === "hcm-real" ? "HCM" : plan.path === "fast" ? "Fast Path" : plan.path === "llm-real" ? "LLM Real" : "LLM Sim"}
         </span>
       </div>
       <p className="plan-summary">{plan.summary}</p>

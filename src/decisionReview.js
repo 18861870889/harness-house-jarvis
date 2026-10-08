@@ -9,7 +9,7 @@ export function reviewDecisionBeforeExecution({
 } = {}) {
   const issues = [];
   const actionCount = plan?.actions?.length ?? 0;
-  const isReadOnly = ["hcm_state_query", "hcm_inventory_query", "hcm_preference_feedback", "hcm_correction_feedback"].includes(plan?.kind);
+  const isReadOnly = ["hcm_state_query", "hcm_inventory_query", "hcm_capability_query", "hcm_preference_feedback", "hcm_correction_feedback"].includes(plan?.kind);
   const partialSimulation = hasPartialExecutableSimulation(simulation);
 
   if (plan?.requiresClarification) {
@@ -18,7 +18,7 @@ export function reviewDecisionBeforeExecution({
   if (!isReadOnly && plan?.kind === "unresolved_control") {
     issues.push(issue("unresolved_control", "high", "控制意图没有解析到可执行 HCM 目标"));
   }
-  if (!isReadOnly && actionCount === 0 && looksLikeControl(input)) {
+  if (!isReadOnly && actionCount === 0 && looksLikeControl(input) && plan?.intentFrame?.decision?.mode !== "no_action") {
     issues.push(issue("empty_control_plan", "high", "控制类表达没有动作"));
   }
   for (const rejection of executionPlan?.rejected ?? []) {

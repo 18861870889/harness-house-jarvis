@@ -28,6 +28,13 @@ Harness House 是一个开源智能家居 AI 框架，提供统一的家庭能�
 
 ## 快速开始
 
+### D1 本地决策实验
+
+本分支提供独立的 D1-only 实验：不调用 DeepSeek/OpenAI，不需要 API key，也不需要真实 HA。
+`npm ci && npm run demo:d1` 启动后，在 `http://localhost:5173/` 选择“模拟执行”。所有设备状态只保存在内存中，重启会恢复；这不是你的真实家庭设备目录。
+
+可测试“打开书房射灯”“关闭餐厅吊灯”“书房空调调到24度”“客厅电视怎么打开”。详细架构、验证结果和已知限制见 [D1 实验说明](docs/D1_LOCAL_DECISION_EXPERIMENT.md)。这是实验入口，尚不替代现有完整 Hermes 对话方案。
+
 ### 前提条件
 
 - Mac Mini 上已安装 Hermes Agent

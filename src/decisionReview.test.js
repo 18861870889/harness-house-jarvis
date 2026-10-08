@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { reviewDecisionBeforeExecution } from "./decisionReview.js";
 
 describe("decision review", () => {
+  it("respects explicit no-action and read-only capability decisions containing control verbs", () => {
+    for (const plan of [
+      { kind: "empty", intentFrame: { decision: { mode: "no_action" } }, actions: [] },
+      { kind: "hcm_capability_query", actions: [] },
+    ]) {
+      const review = reviewDecisionBeforeExecution({ input: "电视怎么打开", plan, executionPlan: { rejected: [] }, policyPlan: { rejected: [] }, simulation: { rejected: [] } });
+      expect(review.blocksExecution).toBe(false);
+      expect(review.issues).toEqual([]);
+    }
+  });
   it("passes a fully simulated low-risk plan without executing devices", () => {
     const review = reviewDecisionBeforeExecution({
       input: "打开书房射灯",

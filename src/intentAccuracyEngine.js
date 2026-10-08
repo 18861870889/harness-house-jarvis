@@ -35,7 +35,7 @@ export function evaluateIntentAccuracy({
     }
   }
 
-  if (plan?.intentType !== "state_query" && CONTROL_VERB_PATTERN.test(text) && actionTargets.length === 0) {
+  if (["device_control", "scene"].includes(plan?.intentType) && CONTROL_VERB_PATTERN.test(text) && actionTargets.length === 0) {
     issues.push(issue("no_executable_target", "high", "控制类表达没有解析出可执行目标"));
   }
 

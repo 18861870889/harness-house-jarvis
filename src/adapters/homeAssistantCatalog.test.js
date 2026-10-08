@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { mapHomeAssistantGraphToHcm } from "./homeAssistantCatalog.js";
 
 describe("home assistant catalog mapper", () => {
+  it("retains climate temperature boundaries and step from HA attributes", () => {
+    const home = mapHomeAssistantGraphToHcm({
+      areas: [{ area_id: "study", name: "书房" }],
+      devices: [{ id: "ac", area_id: "study", name: "书房空调", identifiers: [["xiaomi_home", "demo_ac"]] }],
+      entities: [{ device_id: "ac", entity_id: "climate.demo_ac", original_name: "温度", platform: "xiaomi_home" }],
+      states: [{ entity_id: "climate.demo_ac", state: "cool", attributes: { min_temp: 18, max_temp: 28, target_temp_step: 0.5 } }],
+    });
+    expect(home.things[0].capabilities[0].evidence.constraints).toMatchObject({ min: 18, max: 28, step: 0.5 });
+  });
   it("maps Home Assistant registries into a device-first HCM catalog", () => {
     const hcm = mapHomeAssistantGraphToHcm({
       provider: { id: "home_assistant", name: "Home Assistant" },

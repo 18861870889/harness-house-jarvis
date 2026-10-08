@@ -20,16 +20,8 @@ async function sendCommand(payload) {
   return resp.json();
 }
 
-function hasHarnessHouse() {
-  try {
-    // synchronous check — if fetch fails, tests are skipped
-    return true; // vitest will handle connection errors
-  } catch {
-    return false;
-  }
-}
-
-describe.skipIf(!hasHarnessHouse())("skip_planner integration", () => {
+// Live integration is explicitly opt-in; default tests must never contact a user's HA.
+describe.skipIf(process.env.HARNESS_LIVE_TESTS !== "1")("skip_planner integration", () => {
   it("accepts skipPlanner + plannerDraft and skips LLM", async () => {
     const result = await sendCommand({
       input: "打开书房射灯",

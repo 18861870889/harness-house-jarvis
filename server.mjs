@@ -53,6 +53,9 @@ import {
 } from "./src/learningLayer.js";
 import { buildRuntimeStatus, getExecutionMode } from "./src/releaseGate.js";
 import { createSpatialEditorState, hasSpatialEditorEdits } from "./src/spatialHomeEditor.js";
+import { createD1Client } from "./src/d1Client.js";
+import { decideWithD1 } from "./src/d1Decision.js";
+import { createD1DemoAdapter } from "./src/adapters/d1DemoAdapter.js";
 
 const app = express();
 loadLocalEnv();
@@ -63,7 +66,15 @@ const learningMemoryPath = resolve(process.cwd(), process.env.HARNESS_LEARNING_M
 const providerSnapshotPath = resolve(process.cwd(), process.env.HARNESS_PROVIDER_SNAPSHOT_PATH || "data/provider-snapshot.local.json");
 const automationMemoryPath = resolve(process.cwd(), process.env.HARNESS_AUTOMATION_MEMORY_PATH || "data/automation-memory.local.json");
 const spatialEditorPath = resolve(process.cwd(), process.env.HARNESS_SPATIAL_EDITOR_PATH || "data/spatial-editor.local.json");
-const homeAssistantAdapter = createHomeAssistantAdapter({
+const d1Enabled = process.env.HARNESS_DECISION_BACKEND === "d1";
+const demoEnabled = process.env.HARNESS_D1_DEMO === "1";
+const d1Client = d1Enabled ? createD1Client({
+  endpoint: process.env.D1_ENDPOINT,
+  model: process.env.D1_MODEL || "d1-3b-q4",
+  timeoutMs: Number(process.env.D1_TIMEOUT_MS || 1800),
+}) : null;
+const plannerConfigured = d1Enabled ? Boolean(d1Client) : Boolean(process.env.OPENAI_API_KEY);
+const homeAssistantAdapter = demoEnabled ? createD1DemoAdapter() : createHomeAssistantAdapter({
   baseUrl: process.env.HA_BASE_URL || process.env.HOME_ASSISTANT_URL,
   token: process.env.HA_TOKEN || process.env.HOME_ASSISTANT_TOKEN,
 });
@@ -74,13 +85,20 @@ const conversationContextStore = createConversationContextStore();
 app.use(express.json({ limit: "20mb" }));
 
 app.get("/api/runtime/status", (_request, response) => {
-  response.json(buildRuntimeStatus({
+  const status = buildRuntimeStatus({
     env: process.env,
     haConfigured: homeAssistantAdapter.isConfigured(),
-    llmConfigured: Boolean(process.env.OPENAI_API_KEY),
+    llmConfigured: plannerConfigured,
     hasOnboardingBaseline: Boolean(readProviderSnapshotRecord()?.graph),
     commandAuditEnabled: Boolean(commandAuditPath),
-  }));
+  });
+  if (demoEnabled) {
+    status.simulated = true;
+    status.execution.label = "内存模拟执行";
+    status.execution.description = "当前 provider 没有网络传输，不会控制真实 HA 设备。";
+    status.checks.find((check) => check.id === "ha_configured").message = "使用内存模拟设备，不连接真实 HA。";
+  }
+  response.json(status);
 });
 
 app.get("/api/spatial-editor/state", (_request, response) => {
@@ -121,14 +139,21 @@ app.put("/api/spatial-editor/state", (request, response) => {
 
 app.get("/api/llm/status", (_request, response) => {
   response.json({
-    configured: Boolean(process.env.OPENAI_API_KEY),
-    provider: process.env.OPENAI_BASE_URL ? "openai-compatible" : "openai",
+    configured: plannerConfigured,
+    provider: d1Enabled ? "local-d1" : process.env.OPENAI_BASE_URL ? "openai-compatible" : "openai",
     model: getModel(),
-    mode: process.env.OPENAI_API_KEY ? "real" : "simulated",
+    mode: plannerConfigured ? "real" : "simulated",
+    decisionBackend: d1Enabled ? "d1" : "generative",
+    cloudFallback: !d1Enabled,
+    simulatedDevices: demoEnabled,
   });
 });
 
 app.post("/api/llm/plan", async (request, response) => {
+  if (d1Enabled) {
+    response.status(503).json({ error: "D1 requires the HCM command endpoint. Cloud and simulator planner fallback are disabled." });
+    return;
+  }
   if (!process.env.OPENAI_API_KEY) {
     response.status(503).json({
       error: "OPENAI_API_KEY is not configured; frontend should use LLM Sim fallback.",
@@ -540,7 +565,7 @@ app.use(vite.middlewares);
 app.listen(port, "0.0.0.0", () => {
   console.log(`Harness House running at http://localhost:${port}/`);
   console.log(
-    process.env.OPENAI_API_KEY
+    plannerConfigured
       ? `LLM Gateway enabled with model ${getModel()}`
       : "LLM Gateway running in simulated fallback mode. Set OPENAI_API_KEY to enable real model calls.",
   );
@@ -571,6 +596,7 @@ function loadLocalEnv() {
 }
 
 function getModel() {
+  if (process.env.HARNESS_DECISION_BACKEND === "d1") return process.env.D1_MODEL || "d1-3b-q4";
   return process.env.OPENAI_MODEL || process.env.HARNESS_LLM_MODEL || "gpt-4o-mini";
 }
 
@@ -798,7 +824,7 @@ async function runHcmCommandPipeline(payload) {
     error.statusCode = 503;
     throw error;
   }
-  if (!process.env.OPENAI_API_KEY) {
+  if (!plannerConfigured) {
     const error = new Error("OPENAI_API_KEY is not configured; real HCM command execution requires a planner model.");
     error.statusCode = 503;
     throw error;
@@ -893,7 +919,7 @@ async function runHcmCommandPipeline(payload) {
     // This eliminates the second LLM call (~3.5s) when the caller has already
     // understood the intent. Safety Gate, Policy Gate, Decision Review, and
     // Provider Simulation still run — only the LLM planner is skipped.
-    const useExternalDraft = Boolean(payload.skipPlanner) && payload.plannerDraft;
+    const useExternalDraft = !d1Enabled && Boolean(payload.skipPlanner) && payload.plannerDraft;
     const draft = useExternalDraft
       ? await runCommandStage(
           trace,
@@ -909,7 +935,7 @@ async function runHcmCommandPipeline(payload) {
             }),
           },
         )
-      : plannerDevices.length === 0
+      : !d1Enabled && plannerDevices.length === 0
       ? await runCommandStage(
           trace,
           "planner_fallback",
@@ -937,6 +963,7 @@ async function runHcmCommandPipeline(payload) {
               contextPack: promptContextPack,
               context: contextAgent,
               conversation,
+              home,
             }),
           {
             summarize: (draft) => ({
@@ -952,7 +979,7 @@ async function runHcmCommandPipeline(payload) {
     const expandedDraft = await runCommandStage(
       trace,
       "batch_expander",
-      async () => expandBatchActions(draft, home, payload.input),
+      async () => d1Enabled ? draft : expandBatchActions(draft, home, payload.input),
       {
         summarize: (d) => ({
           batchExpanded: Boolean(d?._batch_expanded),
@@ -961,7 +988,7 @@ async function runHcmCommandPipeline(payload) {
         }),
       },
     );
-    const normalizedPlan = await runCommandStage(trace, "plan_normalize", async () => normalizeHcmPlannerDraft(payload.input, expandedDraft, home), {
+    const normalizedPlan = await runCommandStage(trace, "plan_normalize", async () => normalizeHcmPlannerDraft(payload.input, expandedDraft, home, { strictSelection: d1Enabled }), {
       summarize: (plan) => ({
         intent: plan.intent,
         intentType: plan.intentType,
@@ -1061,7 +1088,7 @@ async function runHcmCommandPipeline(payload) {
       results: [],
     };
 
-    if (["hcm_state_query", "hcm_inventory_query", "hcm_preference_feedback", "hcm_correction_feedback"].includes(plan.kind)) {
+    if (["hcm_state_query", "hcm_inventory_query", "hcm_capability_query", "hcm_preference_feedback", "hcm_correction_feedback"].includes(plan.kind)) {
       execution.status = "answered";
     } else if (decisionReview.blocksExecution && decisionReview.status === "partial_available") {
       execution.status = "needs_confirmation";
@@ -1128,6 +1155,8 @@ async function runHcmCommandPipeline(payload) {
     });
 
     const planner = {
+      backend: d1Enabled ? "local-d1" : "generative",
+      decision: draft.d1 ?? null,
       deviceCount: plannerDevices.length,
       capabilityCount: plannerDevices.reduce((sum, device) => sum + device.capabilities.length, 0),
       personalSemanticHintCount: personalSemantics.length,
@@ -1233,6 +1262,7 @@ async function callPlannerModel(payload) {
 }
 
 async function callHcmPlannerModel(payload) {
+  if (d1Enabled) return decideWithD1({ input: payload.input, home: payload.home, conversation: payload.conversation, client: d1Client });
   const response = await fetch(`${getBaseUrl()}/chat/completions`, {
     method: "POST",
     headers: {
