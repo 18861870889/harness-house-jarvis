@@ -7,11 +7,13 @@ import { createD1Client } from "../src/d1Client.js";
 
 const live = process.argv.includes("--live");
 const output = process.argv.find((arg) => arg.startsWith("--output="))?.slice(9);
+const sampleCount = Number(process.argv.find((arg) => arg.startsWith("--samples="))?.slice(10) ?? 100);
+if (!Number.isSafeInteger(sampleCount) || sampleCount < 10 || sampleCount > 2000) throw new Error("invalid_sample_count");
 const root = mkdtempSync(join(tmpdir(), "house-harness-compare-"));
 const runtimes = {};
 const calls = { pi: 0, langgraph: 0 };
 const native = live ? createD1Client({ endpoint: process.env.D1_ENDPOINT ?? "http://192.168.1.154:8080/v1/systemone", timeoutMs: 5000 }) : null;
-const report = { mode: live ? "native_local_d1" : "deterministic_fixture_not_language_accuracy", node: process.version, simulatedDevices: true, frameworkVersions: { pi: "0.99.2", langgraph: "1.4.21" }, samples: {}, semantics: {} };
+const report = { mode: live ? "native_local_d1" : "deterministic_fixture_not_language_accuracy", durabilityContract: "transactional-result-context-v1", journalSynchronous: "FULL", prepareCheckpointBeforeEffects: true, warmupCount: live ? 0 : 10, node: process.version, simulatedDevices: true, frameworkVersions: { pi: "0.99.2", langgraph: "1.4.21" }, samples: {}, semantics: {} };
 const factories = { pi: createPiRuntime, langgraph: createLangGraphRuntime };
 try {
   for (const [name, factory] of Object.entries(factories)) {
@@ -26,7 +28,7 @@ try {
   }
   if (!live) {
     // Warm-up is excluded; order alternates to limit systematic run-order bias.
-    for (let i = -3; i < 30; i += 1) {
+    for (let i = -10; i < sampleCount; i += 1) {
       for (const name of i % 2 ? ["pi", "langgraph"] : ["langgraph", "pi"]) {
         const start = performance.now();
         const result = await runtimes[name].run({ sessionId: "bench", commandId: `bench-${i}`, input: "打开书房射灯" });
@@ -62,6 +64,8 @@ try {
     return [name, { count: sorted.length, p50Ms: sorted[Math.ceil(sorted.length * 0.5) - 1], p95Ms: sorted[Math.ceil(sorted.length * 0.95) - 1], inferenceCalls: calls[name], adapterLines: readFileSync(`src/experiments/harnessComparison/${name === "pi" ? "piRuntime" : "langgraphRuntime"}.js`, "utf8").split("\n").length - 1 }];
   }));
   report.sharedBusinessLines = readFileSync("src/experiments/harnessComparison/kernel.js", "utf8").split("\n").length - 1;
+  report.sharedJournalLines = readFileSync("src/experiments/harnessComparison/executionJournal.js", "utf8").split("\n").length - 1;
+  report.persistence = Object.fromEntries(Object.entries(runtimes).map(([name, runtime]) => [name, runtime.stats()]));
   if (output) { mkdirSync(dirname(output), { recursive: true }); writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`); }
   console.log(JSON.stringify(report, null, 2));
 } finally {

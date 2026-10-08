@@ -1,6 +1,10 @@
 # D1 harness comparison
 
-## Decision
+## Current Status
+
+The measurements and recommendation below are the **initial comparison baseline**. Subsequent [Pi hardening](PI_HARNESS_HARDENING.md) adds atomic result/conversation persistence, projection repair, actual process-kill tests, bounded Pi sessions, and comparable durability benchmarks. Pi is now a viable next-prototype candidate; the initial LangGraph preference is not the current final decision. Neither runtime has been migrated into the active UI, and the shared intent-gate failure remains unresolved.
+
+## Initial Decision
 
 This is an isolated SDK evaluation, not a production migration. Prefer **LangGraph JS** for the next D1 control-path prototype: it accepts the native decision API directly and supplies checkpointed clarification interrupts. Pi Agent Core also works, but its chat/tool-event interface needs a custom D1 bridge, and clarification state remains application glue in this experiment.
 
@@ -15,7 +19,7 @@ Official references consulted before implementation:
 
 Pinned SDKs: Pi core/AI/official SQLite backend `0.99.2`, LangGraph `1.4.21`, SQLite checkpointer `1.0.4`. Pi core's registry latest and its SQLite backend did not share a release; matched versions were chosen instead of mixing them. This does not claim parity with the latest Pi AgentHarness API. No code from either framework was copied into the product.
 
-## Architecture
+## Initial Architecture
 
 ```text
 Request identity + abort signal
@@ -40,8 +44,8 @@ Use Node `24.13.1` or a compatible Node 24 runtime; these experiments use built-
 ```sh
 npm ci
 npm run test:harness
-npm run compare:harness -- --output=docs/reports/harness-fixture.json
-npm run compare:harness -- --live --output=docs/reports/harness-local-d1.json
+npm run compare:harness -- --output=docs/reports/pi-hardening-fixture.json
+npm run compare:harness -- --live --output=docs/reports/pi-hardening-local-d1.json
 ```
 
 The live command defaults to the configured LAN D1 endpoint; `D1_ENDPOINT` can override it. It does not use `.env` HA credentials. All device writes are in memory. Temporary framework databases are removed at exit.
@@ -52,7 +56,7 @@ Shared scenarios cover one inference per command, HCM execution/readback, duplic
 
 Separate Node-process probes verify durable context, simulated world state, and completed-command deduplication. Crash-window tests inject failure after an in-memory effect but before completion; an unconfirmed request is not automatically replayed. These are SDK/business-mechanics tests with deterministic choice fixtures, **not proof of language understanding**.
 
-Final verification on Node `24.13.1`: **321 tests passed, 3 skipped**, across 41 passing test files and one skipped file. The harness/client subset contains 49 passing tests. `npm run build` passed. The live report evaluates seven shared cases without injecting expected choices into model input. Both frameworks passed six; the same contextual follow-up failed in both.
+Initial verification on Node `24.13.1`: **321 tests passed, 3 skipped**, across 41 passing test files and one skipped file. The original harness/client subset contains 49 passing tests. `npm run build` passed. The live report evaluates seven shared cases without injecting expected choices into model input. Both frameworks passed six; the same contextual follow-up failed in both. Current verification and additional hardening cases are recorded in [the hardening report](PI_HARNESS_HARDENING.md#verification).
 
 ### Important semantic finding
 
@@ -62,9 +66,9 @@ This isolates a conflict between the **candidate decision and independent purpos
 
 State-query success in this report means correct read-only routing with no actions, not quality of a natural-language response. D1 is not a general conversational answer generator.
 
-## Performance
+## Initial Performance
 
-The fixture benchmark alternates runtime order, excludes three warm-ups, and measures 30 calls per framework. It includes validation, memory execution/readback, and SQLite persistence, but no model latency. See [raw fixture samples](reports/harness-fixture.json) and [native D1 results](reports/harness-local-d1.json).
+The initial fixture benchmark alternates runtime order, excludes three warm-ups, and measures 30 calls per framework. It includes validation, memory execution/readback, and SQLite persistence, but no model latency. See the preserved [initial fixture samples](reports/harness-fixture.json) and [initial native D1 results](reports/harness-local-d1.json). The current benchmark uses 100 samples and the shared atomic recovery contract; see [the hardening report](PI_HARNESS_HARDENING.md).
 
 | Measurement | Pi Agent Core | LangGraph JS |
 | --- | ---: | ---: |
@@ -78,7 +82,9 @@ The first native request includes model cold-start overhead and the seven-case s
 
 The Pi adapter is 76 lines versus LangGraph's 35 lines; the shared safety/business kernel is counted separately. LOC is an integration-complexity signal, not a framework-wide quality metric. LangGraph's checkpoint overhead is a few milliseconds, not a reason to weaken persistence or safety.
 
-## Remaining Boundaries
+## Initial Boundaries
+
+These describe the baseline, not all current limitations. Single-host ownership, atomic result/context commits, checkpoint repair, and bounded Pi sessions/results are now implemented; see [current remaining gates](PI_HARNESS_HARDENING.md#remaining-gates). External-effect uncertainty, product integration, long-term operation, and intent quality remain open.
 
 - No production UI/API integration, real-device testing, general conversation generation, long-term preference learning, or autonomous device onboarding was added.
 - Voice origin is a simulated/configured terminal mapping, not detection from occupancy sensors. Production must authenticate terminals; caller-supplied room IDs and UI selection are not location evidence.

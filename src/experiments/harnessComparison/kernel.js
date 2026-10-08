@@ -1,7 +1,5 @@
-import { DatabaseSync } from "node:sqlite";
 import { createHash } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { createExecutionJournal } from "./executionJournal.js";
 import { decideWithD1 } from "../../d1Decision.js";
 import { createConversationContextStore } from "../../conversationContext.js";
 import { normalizeHcmPlannerDraft } from "../../hcmPlanner.js";
@@ -10,14 +8,13 @@ import { createD1DemoAdapter, createD1DemoHome } from "../../adapters/d1DemoAdap
 import { simulateProviderExecutionPlan, executeSimulatedProviderPlan, verifyProviderExecutionResults } from "../../providerExecutionRuntime.js";
 
 const TTL = 30 * 60 * 1000;
-export const emptyState = () => ({ turns: [], pending: null, updatedAt: 0 });
+const validId = (id) => typeof id === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id);
+export const emptyState = () => ({ turns: [], pending: null, updatedAt: 0, revision: 0 });
 
 // Business-side admission and effect tracking are deliberately identical for both SDKs.
-export function createKernel({ directory, client, now = Date.now, terminalRooms = {}, afterEffect, beforeExecute, initialHome }) {
-  mkdirSync(directory, { recursive: true });
-  const db = new DatabaseSync(join(directory, "effects.sqlite"));
-  db.exec("CREATE TABLE IF NOT EXISTS requests (id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, status TEXT NOT NULL, result TEXT); CREATE TABLE IF NOT EXISTS world (id INTEGER PRIMARY KEY, home TEXT NOT NULL, writes INTEGER NOT NULL)");
-  const persisted = db.prepare("SELECT * FROM world WHERE id=1").get();
+export function createKernel({ directory, client, now = Date.now, terminalRooms = {}, afterEffect, beforeExecute, initialHome, lifecycle, ...storageLimits }) {
+  const journal = createExecutionJournal({ directory, ...storageLimits });
+  const persisted = journal.getWorld();
   const adapter = createD1DemoAdapter({ home: persisted ? JSON.parse(persisted.home) : initialHome ?? createD1DemoHome() });
   let writes = persisted?.writes ?? 0;
   let effectSignal;
@@ -27,8 +24,9 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
     const result = await execute(...args);
     writes += 1;
     const home = await adapter.discoverHcmHome();
-    db.prepare("INSERT OR REPLACE INTO world VALUES (1,?,?)").run(JSON.stringify(home), writes);
+    journal.saveWorld(home, writes);
     await afterEffect?.();
+    await lifecycle?.("after_effect");
     return result;
   };
 
@@ -42,28 +40,34 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
 
   return {
     adapter,
+    journal,
     get writes() { return writes; },
-    close: () => db.close(),
+    close: () => journal.close(),
+    state: (id, fallback = emptyState()) => journal.initializeState(id, fallback),
     admit(request) {
-      if (!request.sessionId || !request.commandId || typeof request.input !== "string" || !request.input.trim() || request.input.length > 500) throw new Error("invalid_request");
+      if (![request.sessionId, request.commandId].every(validId) || typeof request.input !== "string" || !request.input.trim() || request.input.length > 500) throw new Error("invalid_request");
       const payload = { sessionId: request.sessionId, input: request.input, preview: Boolean(request.preview), resumeFor: request.resumeFor ?? null, origin: request.origin ?? null };
       const fingerprint = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-      const old = db.prepare("SELECT * FROM requests WHERE id=?").get(request.commandId);
+      const old = journal.getRequest(request.commandId);
       if (old) {
         if (old.fingerprint !== fingerprint) throw new Error("command_id_conflict");
-        return old.status === "complete" ? JSON.parse(old.result) : { status: "execution_unknown", summary: "上次请求的结果未确认，不能自动重放。" };
+        return old.status === "complete" ? JSON.parse(old.result) : old.status === "compacted" ? { status: "completed_result_expired", summary: "该请求已经处理，详细结果已归档，不会重复执行。" } : { status: "execution_unknown", summary: "上次请求的结果未确认，不能自动重放。" };
       }
-      db.prepare("INSERT INTO requests VALUES (?,?,'admitted',NULL)").run(request.commandId, fingerprint);
+      journal.admit(request.commandId, fingerprint);
       return null;
     },
     finish(request, result) {
-      db.prepare("UPDATE requests SET status='complete', result=? WHERE id=?").run(JSON.stringify(result), request.commandId);
+      journal.complete(request, result);
     },
     fail(request, error, signal) {
-      const row = db.prepare("SELECT status FROM requests WHERE id=?").get(request.commandId);
+      const row = journal.getRequest(request.commandId);
+      if (row?.status === "complete") return { ...JSON.parse(row.result), checkpointWarning: error.message };
       const result = { status: row?.status === "effect_started" ? "execution_unknown" : signal?.aborted ? "cancelled" : "failed", summary: error.message };
       // Never retry automatically after an effect might have happened.
-      if (row?.status !== "effect_started") this.finish(request, result);
+      if (row?.status !== "effect_started") {
+        try { this.finish(request, result); }
+        catch { result.persistenceWarning = "journal_unavailable"; }
+      }
       return result;
     },
     async decide(request, state, signal) {
@@ -87,7 +91,10 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
       } };
       const draft = await decideWithD1({ input, home, conversation, client: enriched });
       signal?.throwIfAborted();
-      return { draft, home, input };
+      const decision = { draft, home, input };
+      journal.prepare(request.commandId, decision);
+      await lifecycle?.("after_prepare");
+      return decision;
     },
     async settle(request, state, decision, signal) {
       signal?.throwIfAborted();
@@ -105,7 +112,8 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
         signal?.throwIfAborted();
         if (request.preview) status = "dry_run";
         else {
-          db.prepare("UPDATE requests SET status='effect_started' WHERE id=?").run(request.commandId);
+          journal.beginEffect(request.commandId);
+          await lifecycle?.("before_effect");
           effectSignal = signal;
           try { results = await executeSimulatedProviderPlan({ adapter, simulation, commandId: request.commandId }); }
           finally { effectSignal = undefined; }
@@ -116,9 +124,11 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
       }
       const turn = { input: request.input, plan, execution: { status } };
       const turns = now() - state.updatedAt <= TTL ? state.turns : [];
-      const next = { turns: [...turns, turn].slice(-6), updatedAt: now(), pending: status === "needs_clarification" ? { commandId: request.commandId, input: decision.input, createdAt: now() } : null };
+      const next = { turns: [...turns, turn].slice(-6), updatedAt: now(), revision: state.revision ?? 0, pending: status === "needs_clarification" ? { commandId: request.commandId, input: decision.input, createdAt: now() } : null };
       const result = { status, summary: decision.draft.summary, actions: plan.actions, selectedId: decision.draft.d1.selectedId, d1: decision.draft.d1, results, simulated: true, context: context(next) };
-      return { state: next, result };
+      const committed = journal.complete(request, result, next);
+      await lifecycle?.("after_commit");
+      return { state: committed, result };
     },
   };
 }
@@ -128,7 +138,15 @@ export function guardedRuntime(kernel, driver) {
   let closed = false;
   return {
     kernel,
-    getState: (sessionId) => driver.getState(sessionId),
+    stats: () => ({ ...kernel.journal.stats(), ...(driver.stats?.() ?? {}) }),
+    async getState(sessionId) {
+      if (closed) throw new Error("runtime_closed");
+      if (busy) throw new Error("runtime_busy");
+      if (!validId(sessionId)) throw new Error("invalid_session_id");
+      busy = true;
+      try { return await driver.getState(sessionId); }
+      finally { busy = false; }
+    },
     async run(request, { signal } = {}) {
       if (closed) throw new Error("runtime_closed");
       if (busy) throw new Error("runtime_busy");
@@ -138,7 +156,6 @@ export function guardedRuntime(kernel, driver) {
       busy = true;
       try {
         const result = await driver.run(request, signal);
-        kernel.finish(request, result);
         return result;
       } catch (error) {
         return kernel.fail(request, error, signal);
@@ -147,9 +164,8 @@ export function guardedRuntime(kernel, driver) {
     async close() {
       if (closed) return;
       if (busy) throw new Error("runtime_busy");
-      await driver.close();
-      kernel.close();
-      closed = true;
+      try { await driver.close(); }
+      finally { kernel.close(); closed = true; }
     },
   };
 }

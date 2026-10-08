@@ -6,19 +6,64 @@ import { createKernel, emptyState, guardedRuntime } from "./kernel.js";
 
 export async function createPiRuntime(options) {
   const kernel = createKernel(options);
-  const repo = new SqliteSessionRepo({ directory: join(options.directory, "sessions"), databaseFactory: createNodeSqliteFactory() });
+  const sqlite = createNodeSqliteFactory();
+  const databaseFactory = Object.fromEntries(["open", "openExisting", "openReadOnly"].map((method) => [method, async (path) => {
+    const db = await sqlite[method](path);
+    try { db.exec("PRAGMA synchronous=FULL"); return db; }
+    catch (error) { db.close(); throw error; }
+  }]));
+  const repo = new SqliteSessionRepo({ directory: join(options.directory, "sessions"), databaseFactory });
   const sessions = new Map();
+  const metadata = new Map();
+  let listed = false;
+  let checkpointWrites = 0;
+  let repairs = 0;
+  let peakActiveSessions = 0;
+  const maxOpenSessions = options.maxOpenSessions ?? 8;
+  if (!Number.isSafeInteger(maxOpenSessions) || maxOpenSessions < 1) { await repo.close(BACKGROUND_CONTEXT); kernel.close(); throw new Error("invalid_session_cache_limit"); }
   const address = value("harness-house", "conversation");
-  async function getSession(id) {
-    if (!sessions.has(id)) {
-      const existing = (await repo.list(undefined, BACKGROUND_CONTEXT)).find((metadata) => metadata.id === id);
-      sessions.set(id, existing ? await repo.open(existing, BACKGROUND_CONTEXT) : await repo.create({ id }, BACKGROUND_CONTEXT));
+  async function listMetadata() {
+    if (!listed) {
+      for (const item of await repo.list(undefined, BACKGROUND_CONTEXT)) metadata.set(item.id, item);
+      listed = true;
     }
-    return sessions.get(id);
+  }
+  async function getSession(id) {
+    await listMetadata();
+    if (!sessions.has(id)) {
+      if (sessions.size >= maxOpenSessions) {
+        const oldest = sessions.keys().next().value;
+        await sessions.get(oldest).close(BACKGROUND_CONTEXT);
+        sessions.delete(oldest);
+      }
+      const existing = metadata.get(id);
+      const session = existing ? await repo.open(existing, BACKGROUND_CONTEXT) : await repo.create({ id }, BACKGROUND_CONTEXT);
+      metadata.set(id, session.metadata);
+      sessions.set(id, session);
+      peakActiveSessions = Math.max(peakActiveSessions, sessions.size);
+    }
+    const session = sessions.get(id);
+    sessions.delete(id);
+    sessions.set(id, session);
+    return session;
+  }
+  async function checkpoint(id, state, phase) {
+    await options.beforeCheckpoint?.(phase);
+    await (await getSession(id)).setValue(address, state, BACKGROUND_CONTEXT);
+    checkpointWrites += 1;
   }
   const driver = {
+    stats: () => ({ activeSessions: sessions.size, peakActiveSessions, checkpointWrites, repairs }),
     async getState(id) {
-      return (await (await getSession(id)).getValue(address, BACKGROUND_CONTEXT))?.value ?? emptyState();
+      const authoritative = kernel.journal.getState(id);
+      if (!authoritative) {
+        await listMetadata();
+        const legacy = metadata.has(id) ? (await (await getSession(id)).getValue(address, BACKGROUND_CONTEXT))?.value : undefined;
+        return kernel.state(id, legacy ?? emptyState());
+      }
+      const projected = (await (await getSession(id)).getValue(address, BACKGROUND_CONTEXT))?.value;
+      if (JSON.stringify(projected) !== JSON.stringify(authoritative)) { await checkpoint(id, authoritative, "repair"); repairs += 1; }
+      return authoritative;
     },
     async run(request, signal) {
       const state = await driver.getState(request.sessionId);
@@ -45,6 +90,7 @@ export async function createPiRuntime(options) {
           void (async () => {
             try {
               decision = await kernel.decide(request, state, streamOptions.signal);
+              await checkpoint(request.sessionId, { ...state, prepared: { commandId: request.commandId, decision } }, "prepared");
               message.content = [{ type: "toolCall", id: request.commandId, name: "apply_selected_plan", arguments: {} }];
               stream.push({ type: "start", partial: message });
               stream.push({ type: "done", reason: "toolUse", message });
@@ -63,7 +109,8 @@ export async function createPiRuntime(options) {
         await agent.prompt(request.input);
         if (failure) throw failure;
         if (!settled) throw new Error("pi_run_did_not_settle");
-        await (await getSession(request.sessionId)).setValue(address, settled.state, BACKGROUND_CONTEXT);
+        await checkpoint(request.sessionId, settled.state, "complete");
+        await options.lifecycle?.("after_projection");
         return settled.result;
       } finally { signal?.removeEventListener("abort", abort); }
     },

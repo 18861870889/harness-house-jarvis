@@ -38,7 +38,8 @@ Harness House 是一个开源智能家居 AI 框架，提供统一的家庭能�
 ### D1 Harness 框架对比
 
 独立实验分支比较 Pi Agent Core 与 LangGraph JS 的会话持久化、澄清恢复、取消和执行去重。运行 `npm run test:harness` 或 `npm run compare:harness`；加 `-- --live` 仅调用本地 D1，设备仍全部模拟，不连接真实 HA。
-当前建议下一阶段采用 LangGraph JS，但没有迁移主页面。评估结果、性能和仍未解决的意图门控问题见 [框架对比说明](docs/D1_HARNESS_COMPARISON.md)。
+Pi 适配已完成一轮稳定性加固：执行结果与会话事务保存、重启恢复、取消竞争、重复请求去重和会话资源限制均有模拟测试。Pi 现在可作为下一阶段原型候选，但尚未迁移主页面，也未接入真实设备。
+运行 `npm run soak:pi` 可复现一分钟、2,000 条模拟请求压力测试；完整结果与上线前边界见 [Pi 加固报告](docs/PI_HARNESS_HARDENING.md)。最初对比与仍未解决的意图门控问题见 [框架对比说明](docs/D1_HARNESS_COMPARISON.md)。
 
 ### 前提条件
 
