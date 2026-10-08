@@ -7,6 +7,8 @@
     "dev": "node server.mjs",
     "demo:d1": "node scripts/start-d1-demo.mjs",
     "test:d1:live": "node scripts/test-d1-live.mjs",
+    "test:harness": "vitest run src/experiments/harnessComparison.test.js src/d1Client.test.js",
+    "compare:harness": "node scripts/compare-harnesses.mjs",
     "dev:vite": "vite --host 0.0.0.0",
     "build": "vite build",
     "test": "vitest run",
@@ -23,6 +25,11 @@
     "vite": "^7.2.7"
   },
   "devDependencies": {
+    "@earendil-works/pi-agent-core": "0.99.2",
+    "@earendil-works/pi-ai": "0.99.2",
+    "@earendil-works/pi-session-backend-sqlite-node": "0.99.2",
+    "@langchain/langgraph": "1.4.21",
+    "@langchain/langgraph-checkpoint-sqlite": "1.0.4",
     "playwright-core": "^1.60.0",
     "vitest": "^4.1.8"
   }

@@ -11,7 +11,8 @@ export function createD1Client({
 
   return {
     model,
-    async choose({ state, candidates, purposeCandidates }) {
+    async choose({ state, candidates, purposeCandidates, signal }) {
+      signal?.throwIfAborted();
       if (busy) throw new Error("D1 正在处理另一条指令，请稍后重试。设备没有执行。");
       if (candidates.length < 2 || candidates.length > 16) throw new Error("D1 candidate budget exceeded");
       if (state.length > 4000) throw new Error("D1 context budget exceeded");
@@ -28,7 +29,7 @@ export function createD1Client({
         const response = await fetchImpl(url.href, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
+          signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
           body: JSON.stringify({ model, state, questions: {
             plan: { type: "choice", instructions: "哪个方案符合这条用户指令？", criteria },
             ...(purposeCandidates ? { purpose: {
@@ -57,6 +58,7 @@ export function createD1Client({
           usage: data.usage,
         };
       } catch (error) {
+        if (signal?.aborted) throw new Error("D1 请求已取消，设备没有执行。");
         if (controller.signal.aborted) throw new Error("D1 响应超时，设备没有执行。请重试。");
         throw error;
       } finally {

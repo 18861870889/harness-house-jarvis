@@ -61,6 +61,18 @@ describe("native D1 client", () => {
     await first;
   });
 
+  it("propagates external cancellation and releases the inference slot", async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn((_url, { signal }) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })));
+    const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", timeoutMs: 10, fetchImpl });
+    const first = client.choose({ state: "test", candidates, signal: controller.signal });
+    controller.abort();
+    await expect(first).rejects.toThrow("取消");
+    await expect(client.choose({ state: "test", candidates })).rejects.toThrow("超时");
+    await expect(client.choose({ state: "test", candidates, signal: controller.signal })).rejects.toThrow();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("bounds input and candidates before making any network call", async () => {
     const fetchImpl = vi.fn();
     const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl });

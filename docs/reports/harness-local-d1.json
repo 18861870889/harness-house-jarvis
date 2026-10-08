@@ -1,0 +1,374 @@
+{
+  "mode": "native_local_d1",
+  "node": "v24.13.1",
+  "simulatedDevices": true,
+  "frameworkVersions": {
+    "pi": "0.99.2",
+    "langgraph": "1.4.21"
+  },
+  "samples": {
+    "pi": [
+      59.09804100000008,
+      70.91541700000005,
+      52.95562499999994,
+      51.21337499999993,
+      59.471874999999955,
+      60.32945799999993,
+      53.535249999999905
+    ],
+    "langgraph": [
+      256.544958,
+      56.614333999999985,
+      64.81441599999994,
+      56.90149999999994,
+      64.54825000000005,
+      53.276791,
+      64.04825000000005
+    ]
+  },
+  "semantics": {
+    "pi": [
+      {
+        "input": "打开书房射灯",
+        "passed": true,
+        "status": "executed",
+        "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+        "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.8168094401483655,
+            "state": 0.07323351149076704,
+            "capabilities": 0.03148136453555224,
+            "no_write": 0.033351113413418156,
+            "unclear": 0.04512457041189725
+          },
+          "probability": 0.8168094401483655,
+          "margin": 0.7435759286575985,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.7781187559017255,
+        "margin": 0.7052730810998494,
+        "elapsedMs": 59.09804100000008
+      },
+      {
+        "input": "关一下",
+        "passed": false,
+        "status": "needs_clarification",
+        "selectedId": "clarify",
+        "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.5777053915888607,
+            "state": 0.008159267565147685,
+            "capabilities": 0.005806249910082478,
+            "no_write": 0.3907981085736996,
+            "unclear": 0.017530982362209603
+          },
+          "probability": 0.5777053915888607,
+          "margin": 0.18690728301516107,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.9610454965202279,
+        "margin": 0.9419711921375327,
+        "elapsedMs": 70.91541700000005
+      },
+      {
+        "input": "打开主卧灯",
+        "passed": true,
+        "status": "executed",
+        "selectedId": "actions:[[\"master_light\",\"master_power\",true]]",
+        "providerWinnerId": "actions:[[\"master_light\",\"master_power\",true]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.9476344769452036,
+            "state": 0.014386585933048757,
+            "capabilities": 0.012817813001020686,
+            "no_write": 0.006849714471847524,
+            "unclear": 0.01831140964887952
+          },
+          "probability": 0.9476344769452036,
+          "margin": 0.9293230672963241,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.8098360605019669,
+        "margin": 0.7235407510011718,
+        "elapsedMs": 52.95562499999994
+      },
+      {
+        "input": "卧室灯关一下",
+        "passed": true,
+        "status": "needs_clarification",
+        "selectedId": "clarify",
+        "providerWinnerId": "clarify",
+        "purpose": {
+          "probabilities": {
+            "control": 0.9201384051653014,
+            "state": 0.009811687505107249,
+            "capabilities": 0.007062990108752083,
+            "no_write": 0.03298176018172826,
+            "unclear": 0.030005157039110837
+          },
+          "probability": 0.9201384051653014,
+          "margin": 0.8871566449835732,
+          "choice": "control"
+        },
+        "scopeBlock": "你指的是主卧还是次卧？",
+        "probability": 0.5613052205360041,
+        "margin": 0.12261044107200819,
+        "elapsedMs": 51.21337499999993
+      },
+      {
+        "input": "主卧",
+        "passed": true,
+        "status": "executed",
+        "selectedId": "actions:[[\"master_light\",\"master_power\",false]]",
+        "providerWinnerId": "actions:[[\"master_light\",\"master_power\",false]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.8468275002199699,
+            "state": 0.02134512582361378,
+            "capabilities": 0.014098085154172718,
+            "no_write": 0.049799584593001066,
+            "unclear": 0.06792970420924263
+          },
+          "probability": 0.8468275002199699,
+          "margin": 0.7788977960107273,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.8665831138879503,
+        "margin": 0.8250268170151984,
+        "elapsedMs": 59.471874999999955
+      },
+      {
+        "input": "不要打开客厅灯",
+        "passed": true,
+        "status": "answered",
+        "selectedId": "no_action",
+        "providerWinnerId": "no_action",
+        "purpose": {
+          "probabilities": {
+            "control": 0.13244685188295777,
+            "state": 0.01927501057972964,
+            "capabilities": 0.01222577380775183,
+            "no_write": 0.8135869661686511,
+            "unclear": 0.02246539756090962
+          },
+          "probability": 0.8135869661686511,
+          "margin": 0.6811401142856933,
+          "choice": "no_write"
+        },
+        "scopeBlock": null,
+        "probability": 0.6808077694889147,
+        "margin": 0.5183767078472263,
+        "elapsedMs": 60.32945799999993
+      },
+      {
+        "input": "玄关人体传感器目前什么状态",
+        "passed": true,
+        "status": "answered",
+        "selectedId": "state:entry_motion",
+        "providerWinnerId": "state:entry_motion",
+        "purpose": {
+          "probabilities": {
+            "control": 0.007411825382940501,
+            "state": 0.9719553336213168,
+            "capabilities": 0.00963716620676054,
+            "no_write": 0.006660761083060508,
+            "unclear": 0.004334913705921702
+          },
+          "probability": 0.9719553336213168,
+          "margin": 0.9623181674145562,
+          "choice": "state"
+        },
+        "scopeBlock": null,
+        "probability": 0.9741503861074546,
+        "margin": 0.9650050495569849,
+        "elapsedMs": 53.535249999999905
+      }
+    ],
+    "langgraph": [
+      {
+        "input": "打开书房射灯",
+        "passed": true,
+        "status": "executed",
+        "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+        "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.8168094401483655,
+            "state": 0.07323351149076704,
+            "capabilities": 0.03148136453555224,
+            "no_write": 0.033351113413418156,
+            "unclear": 0.04512457041189725
+          },
+          "probability": 0.8168094401483655,
+          "margin": 0.7435759286575985,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.7781187559017255,
+        "margin": 0.7052730810998494,
+        "elapsedMs": 256.544958
+      },
+      {
+        "input": "关一下",
+        "passed": false,
+        "status": "needs_clarification",
+        "selectedId": "clarify",
+        "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.5777053915888607,
+            "state": 0.008159267565147685,
+            "capabilities": 0.005806249910082478,
+            "no_write": 0.3907981085736996,
+            "unclear": 0.017530982362209603
+          },
+          "probability": 0.5777053915888607,
+          "margin": 0.18690728301516107,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.9610454965202279,
+        "margin": 0.9419711921375327,
+        "elapsedMs": 56.614333999999985
+      },
+      {
+        "input": "打开主卧灯",
+        "passed": true,
+        "status": "executed",
+        "selectedId": "actions:[[\"master_light\",\"master_power\",true]]",
+        "providerWinnerId": "actions:[[\"master_light\",\"master_power\",true]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.9476344769452036,
+            "state": 0.014386585933048757,
+            "capabilities": 0.012817813001020686,
+            "no_write": 0.006849714471847524,
+            "unclear": 0.01831140964887952
+          },
+          "probability": 0.9476344769452036,
+          "margin": 0.9293230672963241,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.8098360605019669,
+        "margin": 0.7235407510011718,
+        "elapsedMs": 64.81441599999994
+      },
+      {
+        "input": "卧室灯关一下",
+        "passed": true,
+        "status": "needs_clarification",
+        "selectedId": "clarify",
+        "providerWinnerId": "clarify",
+        "purpose": {
+          "probabilities": {
+            "control": 0.9201384051653014,
+            "state": 0.009811687505107249,
+            "capabilities": 0.007062990108752083,
+            "no_write": 0.03298176018172826,
+            "unclear": 0.030005157039110837
+          },
+          "probability": 0.9201384051653014,
+          "margin": 0.8871566449835732,
+          "choice": "control"
+        },
+        "scopeBlock": "你指的是主卧还是次卧？",
+        "probability": 0.5613052205360041,
+        "margin": 0.12261044107200819,
+        "elapsedMs": 56.90149999999994
+      },
+      {
+        "input": "主卧",
+        "passed": true,
+        "status": "executed",
+        "selectedId": "actions:[[\"master_light\",\"master_power\",false]]",
+        "providerWinnerId": "actions:[[\"master_light\",\"master_power\",false]]",
+        "purpose": {
+          "probabilities": {
+            "control": 0.8468275002199699,
+            "state": 0.02134512582361378,
+            "capabilities": 0.014098085154172718,
+            "no_write": 0.049799584593001066,
+            "unclear": 0.06792970420924263
+          },
+          "probability": 0.8468275002199699,
+          "margin": 0.7788977960107273,
+          "choice": "control"
+        },
+        "scopeBlock": null,
+        "probability": 0.8665831138879503,
+        "margin": 0.8250268170151984,
+        "elapsedMs": 64.54825000000005
+      },
+      {
+        "input": "不要打开客厅灯",
+        "passed": true,
+        "status": "answered",
+        "selectedId": "no_action",
+        "providerWinnerId": "no_action",
+        "purpose": {
+          "probabilities": {
+            "control": 0.13244685188295777,
+            "state": 0.01927501057972964,
+            "capabilities": 0.01222577380775183,
+            "no_write": 0.8135869661686511,
+            "unclear": 0.02246539756090962
+          },
+          "probability": 0.8135869661686511,
+          "margin": 0.6811401142856933,
+          "choice": "no_write"
+        },
+        "scopeBlock": null,
+        "probability": 0.6808077694889147,
+        "margin": 0.5183767078472263,
+        "elapsedMs": 53.276791
+      },
+      {
+        "input": "玄关人体传感器目前什么状态",
+        "passed": true,
+        "status": "answered",
+        "selectedId": "state:entry_motion",
+        "providerWinnerId": "state:entry_motion",
+        "purpose": {
+          "probabilities": {
+            "control": 0.007411825382940501,
+            "state": 0.9719553336213168,
+            "capabilities": 0.00963716620676054,
+            "no_write": 0.006660761083060508,
+            "unclear": 0.004334913705921702
+          },
+          "probability": 0.9719553336213168,
+          "margin": 0.9623181674145562,
+          "choice": "state"
+        },
+        "scopeBlock": null,
+        "probability": 0.9741503861074546,
+        "margin": 0.9650050495569849,
+        "elapsedMs": 64.04825000000005
+      }
+    ]
+  },
+  "summary": {
+    "pi": {
+      "count": 7,
+      "p50Ms": 59.09804100000008,
+      "p95Ms": 70.91541700000005,
+      "inferenceCalls": 7,
+      "adapterLines": 76
+    },
+    "langgraph": {
+      "count": 7,
+      "p50Ms": 64.04825000000005,
+      "p95Ms": 256.544958,
+      "inferenceCalls": 7,
+      "adapterLines": 35
+    }
+  },
+  "sharedBusinessLines": 155
+}

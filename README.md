@@ -35,6 +35,11 @@ Harness House 是一个开源智能家居 AI 框架，提供统一的家庭能�
 
 可测试“打开书房射灯”“关闭餐厅吊灯”“书房空调调到24度”“客厅电视怎么打开”。详细架构、验证结果和已知限制见 [D1 实验说明](docs/D1_LOCAL_DECISION_EXPERIMENT.md)。这是实验入口，尚不替代现有完整 Hermes 对话方案。
 
+### D1 Harness 框架对比
+
+独立实验分支比较 Pi Agent Core 与 LangGraph JS 的会话持久化、澄清恢复、取消和执行去重。运行 `npm run test:harness` 或 `npm run compare:harness`；加 `-- --live` 仅调用本地 D1，设备仍全部模拟，不连接真实 HA。
+当前建议下一阶段采用 LangGraph JS，但没有迁移主页面。评估结果、性能和仍未解决的意图门控问题见 [框架对比说明](docs/D1_HARNESS_COMPARISON.md)。
+
 ### 前提条件
 
 - Mac Mini 上已安装 Hermes Agent
