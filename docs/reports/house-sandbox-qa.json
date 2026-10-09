@@ -308,6 +308,82 @@
       "unmet": []
     },
     "microphoneHardwareVerified": false,
-    "releaseGatePassed": false
+    "releaseGatePassed": false,
+    "finalChromeChecks": {
+      "verifiedAt": "2026-10-09T07:41:55.737Z",
+      "screenshots": [
+        {
+          "screenshot": "chrome-1440.jpg",
+          "size": [
+            1440,
+            1000
+          ],
+          "sceneDistinctColors": 24684,
+          "sceneStddev": [
+            33.23922777066633,
+            32.35859298197163,
+            37.187489423361534
+          ],
+          "nonblank": true
+        },
+        {
+          "screenshot": "chrome-390.jpg",
+          "size": [
+            375,
+            1145
+          ],
+          "sceneDistinctColors": 12561,
+          "sceneStddev": [
+            33.876164451979676,
+            32.97215886705608,
+            37.71851107063833
+          ],
+          "nonblank": true
+        },
+        {
+          "screenshot": "chrome-768.jpg",
+          "size": [
+            753,
+            1219
+          ],
+          "sceneDistinctColors": 17083,
+          "sceneStddev": [
+            31.00236583971766,
+            30.27107703621884,
+            34.868686209237765
+          ],
+          "nonblank": true
+        },
+        {
+          "screenshot": "chrome-ready.jpg",
+          "size": [
+            2490,
+            1289
+          ],
+          "sceneDistinctColors": 29863,
+          "sceneStddev": [
+            26.87286118597449,
+            26.097412507804044,
+            29.785615799307177
+          ],
+          "nonblank": true
+        }
+      ],
+      "fullHouseFramingReviewed": true,
+      "apiAndHmrLoopbackOnly": true,
+      "liveDemo": [
+        {
+          "input": "打开书房射灯",
+          "status": "executed",
+          "uiElapsedMs": 648
+        },
+        {
+          "input": "还是太暗了",
+          "status": "executed",
+          "uiElapsedMs": 397
+        }
+      ],
+      "realDeviceWrites": 0
+    }
   }
 }

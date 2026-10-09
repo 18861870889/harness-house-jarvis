@@ -74,7 +74,7 @@ if (process.argv.includes("--background")) {
   });
   app.use("/api", (_req, res) => res.status(404).json({ error: "sandbox_api_only" }));
   app.get("/", (_req, res) => res.redirect("/sandbox.html"));
-  const vite = await createViteServer({ configFile: false, plugins: [react()], server: { middlewareMode: true, hmr: { port: port + 100 }, fs: { allow: [process.cwd()] } }, appType: "mpa" });
+  const vite = await createViteServer({ configFile: false, plugins: [react()], server: { host: "127.0.0.1", middlewareMode: true, hmr: { host: "127.0.0.1", port: port + 100 }, fs: { allow: [process.cwd()] } }, appType: "mpa" });
   app.use(vite.middlewares);
   app.use((error, _req, res, _next) => {
     const message = error.message ?? "sandbox_failed";

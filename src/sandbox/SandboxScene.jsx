@@ -85,7 +85,7 @@ export default function SandboxScene({ snapshot, controls, onPose, onReady, onEr
       const { width, height } = element.getBoundingClientRect();
       if (!width || !height) return;
       const aspect = width / height;
-      const vertical = Math.max(8.8, 12.8 / aspect);
+      const vertical = Math.max(12.8, 12.8 / aspect);
       camera.left = -vertical * aspect / 2; camera.right = vertical * aspect / 2;
       camera.top = vertical / 2; camera.bottom = -vertical / 2;
       camera.updateProjectionMatrix();
