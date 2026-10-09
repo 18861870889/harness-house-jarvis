@@ -5,6 +5,7 @@ import {
   answerHcmOccupancyStateQuery,
   answerHcmRoomLightStateQuery,
   answerHcmStateQuery,
+  answerHcmThingStateQuery,
   looksLikeStateQuery,
 } from "./hcmStateQuery.js";
 
@@ -182,5 +183,35 @@ describe("HCM state query", () => {
     });
     expect(answer.summary).toContain("书房射灯开");
     expect(answer.summary).toContain("书房吊灯关");
+  });
+
+  it("reads a controllable device's observed state without requiring a separate sensor", () => {
+    const home = createHcmHome({ provider: { id: "demo" }, spaces: [{ id: "living", name: "客厅" }], things: [
+      { id: "light", name: "客厅灯", type: "light", spaceId: "living", capabilities: [control("power", "电源", "light.demo", true)] },
+    ] });
+    home.things[0].capabilities[0].binding.domain = "light";
+    expect(answerHcmThingStateQuery("客厅灯开着吗", home, "light").summary).toBe("客厅灯：在线，电源 开启。");
+    home.things[0].capabilities[0].state = false;
+    expect(answerHcmThingStateQuery("客厅灯开着吗", home, "light").summary).toContain("电源 关闭");
+  });
+
+  it("does not present unknown or offline control values as current state", () => {
+    const home = createHcmHome({ provider: { id: "demo" }, spaces: [{ id: "living", name: "客厅" }], things: [
+      { id: "fan", name: "客厅风扇", type: "fan", spaceId: "living", capabilities: [control("power", "电源", "fan.demo", true)] },
+    ] });
+    home.things[0].capabilities[0].binding.domain = "fan";
+    home.things[0].online = false;
+    expect(answerHcmThingStateQuery("客厅风扇状态", home, "fan").summary).not.toContain("开启");
+    home.things[0].online = true;
+    home.things[0].capabilities[0].state = null;
+    expect(answerHcmThingStateQuery("客厅风扇状态", home, "fan").summary).toContain("暂无可读状态");
+  });
+
+  it("does not treat a button action as an observed power state", () => {
+    const home = createHcmHome({ provider: { id: "demo" }, spaces: [{ id: "living", name: "客厅" }], things: [
+      { id: "button", name: "按钮", type: "switch_panel", spaceId: "living", capabilities: [control("press", "按下", "button.demo", true)] },
+    ] });
+    home.things[0].capabilities[0].binding.domain = "button";
+    expect(answerHcmThingStateQuery("按钮状态", home, "button").summary).toContain("暂无可读状态");
   });
 });

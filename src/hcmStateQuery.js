@@ -243,14 +243,20 @@ function formatThingState(thing, roomName) {
   if (thing.type === "motion_sensor") return formatMotionState(thing, roomName);
   if (thing.type === "door_sensor") return formatDoorState(thing, roomName);
 
-  const readable = sensorCapabilities(thing)
+  const sensors = sensorCapabilities(thing);
+  const controlStates = thing.online === false ? [] : (thing.capabilities ?? []).filter((capability) =>
+    capability.kind === "control" && ["light", "switch", "fan", "media_player", "climate", "cover"].includes(capability.binding?.domain)
+    && (capability.valueType === "boolean" && typeof capability.state === "boolean" || capability.valueType === "number" && Number.isFinite(capability.state)),
+  );
+  const readable = (sensors.length ? sensors : controlStates)
     .slice(0, 3)
-    .map((capability) => `${shortCapabilityName(capability.name)} ${formatStateValue(capability.state)}`)
+    .map((capability) => `${shortCapabilityName(capability.name)} ${capability.kind === "control" && typeof capability.state === "boolean" ? capability.state ? "开启" : "关闭" : formatStateValue(capability.state)}`)
     .join("，");
   const online = thing.online === false ? "离线" : "在线";
+  const displayName = String(thing.name).includes(String(roomName)) ? thing.name : `${roomName}的${thing.name}`;
   return readable
-    ? `${roomName}的${thing.name}：${online}，${readable}。`
-    : `${roomName}的${thing.name}：${online}，暂无可读状态。`;
+    ? `${displayName}：${online}，${readable}。`
+    : `${displayName}：${online}，暂无可读状态。`;
 }
 
 function formatPresenceState(thing, roomName) {

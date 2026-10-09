@@ -40,6 +40,18 @@ for (const [name, factory] of [["pi", createPiRuntime], ["langgraph", createLang
     }, ({ candidates }) => candidates.find((candidate) => candidate.id === "clarify"), { now: () => 100000, terminalRooms: { "mic-study": "study", "bad-mapping": "missing-room" } });
   });
 
+  it("does not reuse old room focus for a configured ambiguous terminal, but honors explicit rooms", async () => {
+    await withRuntime(async (runtime) => {
+      await runtime.run(request("one", "打开书房射灯"));
+      const uncertain = await runtime.run(request("two", "开灯", { origin: { terminalId: "doorway", observedAt: 100000 } }));
+      expect(uncertain.status).toBe("needs_clarification");
+      expect(runtime.kernel.writes).toBe(1);
+      const explicit = await runtime.run(request("three", "打开客厅灯", { origin: { terminalId: "doorway", observedAt: 100000 } }));
+      expect(explicit.status).toBe("executed");
+      expect(explicit.actions.every((action) => action.logicalRoomId === "living")).toBe(true);
+    }, ({ candidates }) => candidates.find((candidate) => candidate.actions.length) ?? candidates.find((candidate) => candidate.id === "clarify"), { now: () => 100000, terminalRooms: { doorway: null } });
+  });
+
   it("persists goal feedback after verified adjustment and confirms satisfaction without more writes", async () => {
     await withRuntime(async (runtime, restart, model) => {
       await runtime.run(request("one", "打开书房射灯"));

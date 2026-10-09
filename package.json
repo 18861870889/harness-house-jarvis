@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "node server.mjs",
     "demo:d1": "node scripts/start-d1-demo.mjs",
+    "demo:sandbox": "node scripts/start-house-sandbox.mjs",
+    "assets:sandbox": "node scripts/build-sandbox-assets.mjs",
+    "test:sandbox:ui": "node scripts/test-house-sandbox.mjs",
     "test:d1:live": "node scripts/test-d1-live.mjs",
     "test:harness": "vitest run src/experiments/harnessComparison.test.js src/experiments/harnessHardening.test.js src/experiments/d1IntentContext.test.js src/d1Client.test.js src/d1DecisionV2.test.js",
     "test:d1:intent:live": "node scripts/evaluate-d1-intent.mjs",
@@ -18,6 +21,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "0.21.0",
     "@vitejs/plugin-react": "^5.1.1",
     "express": "^5.2.1",
     "lucide-react": "^0.468.0",

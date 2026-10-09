@@ -28,6 +28,25 @@ Harness House 是一个开源智能家居 AI 框架，提供统一的家庭能�
 
 ## 快速开始
 
+### 可行走的家庭沙盒 Alpha
+
+独立的 **Blender 资产 + Three.js 实时场景 + Rapier 碰撞 + Pi/D1** 样板已加入：书房、客厅、住户行走、文字/浏览器语音输入、模拟设备状态可视化，以及轨迹导出与隔离回放。**不连接真实 HA，不改已有户型，不调用云端 LLM。**
+
+```bash
+npm ci
+npm run demo:sandbox
+# 在 Chrome 打开 http://localhost:5184/
+# 可选后台启动：npm run demo:sandbox -- --background
+```
+
+点击地面、W/A/S/D、方向键或屏幕方向按钮移动人物；房间归属来自人物位置，不是摄像机视角。试试“打开书房射灯”→“还是太暗了”，然后走到客厅说“开灯”。确认提问后回复“可以”；另起话题可点“新话题”。
+
+设备只在内存中运行，三维灯光、电视、风扇和窗帘随模拟执行回读更新。“场景轨迹”可导出 JSON 或回放；重新开始/重启会清空沙盒。语音输入使用 Chrome 的浏览器 STT，可能依赖网络，播报默认关闭；这不是完全离线语音方案。
+
+模型默认使用局域网 `http://192.168.1.154:8080/v1/systemone`，可通过 `D1_ENDPOINT` 修改；无需模型 key、HA 令牌或 Hermes。Node.js 24+，浏览器须支持 WebGL。预生成 GLB 已包含在仓库，普通运行不需要安装 Blender；重建资产用 `npm run assets:sandbox`。
+
+运行 `npm run test:sandbox:ui` 验证本地 D1、Chrome 桌面/手机画布、行走、回放和语音事件。说明、架构及已知限制见 [家庭沙盒 Alpha](docs/HOME_SANDBOX_ALPHA.md)。此入口在 5184，原主页与 `demo:d1` 保持独立。
+
 ### D1 本地决策实验
 
 本分支提供独立的 D1-only 实验：不调用 DeepSeek/OpenAI，不需要 API key，也不需要真实 HA。
@@ -45,7 +64,7 @@ Pi 适配已完成一轮稳定性加固：执行结果与会话事务保存、�
 
 实验运行时已加入完整决策单次选择、上下文/可信终端房间定位、照明目标调整和明确用户反馈。低置信度方案会先问“要我补开书房吊灯吗？”，确认后重新决策与校验，不直接执行。不是强化学习，也没有降低安全阈值。
 
-全量测试 413 项通过，3 项在线测试跳过。真实局域网 D1、模拟设备回归：严格用例 34/36，额外表达 18/18；两条仍需澄清，尚未全部通过。运行 `npm run test:d1:intent:live` 复测；严格回归未全通过时返回退出码 1。详见 [v2 实现与边界](docs/D1_INTENT_CONTEXT_V2.md)。**尚未切换主网页或 `demo:d1`，也没有控制真实 HA 设备。**
+此前 v2 阶段测试基线为 413 项通过、3 项在线测试跳过；最新沙盒回归见 [沙盒测试记录](docs/HOME_SANDBOX_ALPHA.md#验证)。真实局域网 D1、模拟设备回归：严格用例 34/36，额外表达 18/18；两条仍需澄清，尚未全部通过。运行 `npm run test:d1:intent:live` 复测；严格回归未全通过时返回退出码 1。详见 [v2 实现与边界](docs/D1_INTENT_CONTEXT_V2.md)。**尚未切换主网页或 `demo:d1`，也没有控制真实 HA 设备。**
 
 ### 前提条件
 
@@ -89,7 +108,10 @@ hermes
 
 ```
 harness-house-jarvis/
-├── src/                          # Harness House 核心代码（不改动）
+├── src/                          # Harness House 核心与独立实验
+│   └── sandbox/                  # 独立可行走家庭沙盒
+├── public/sandbox/               # Blender 导出的 GLB / 原创纹理
+├── scripts/                      # 模拟服务、资产构建与测试
 ├── docs/                         # Harness House 文档
 ├── server.mjs                    # Harness House API 服务
 ├── hermes-integration/           # ← 新增：Hermes 集成层

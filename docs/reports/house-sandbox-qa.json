@@ -1,0 +1,313 @@
+{
+  "createdAt": "2026-10-09T07:14:49.144Z",
+  "suite": "house-sandbox-alpha",
+  "model": "native-local-d1",
+  "realDeviceWrites": 0,
+  "speech": "browser API fixture, not microphone hardware",
+  "cases": [
+    {
+      "name": "API isolation and validation",
+      "passed": true,
+      "elapsedMs": 22
+    },
+    {
+      "name": "Desktop assets and nonblank canvas",
+      "passed": true,
+      "elapsedMs": 395,
+      "evidence": {
+        "width": 1086,
+        "height": 930,
+        "colors": 598,
+        "occupied": 0.38559609385596094,
+        "mean": 211.31208463312086,
+        "hash": 888921797,
+        "ready": true,
+        "frames": 11,
+        "drawCalls": 132,
+        "pose": {
+          "x": -1.9999983310699463,
+          "z": 1.1000009775161743
+        },
+        "room": "study",
+        "visual": {
+          "lamps": {
+            "study_spot": 0,
+            "study_ceiling": 0,
+            "living_power": 0
+          },
+          "tvEmissive": 0,
+          "fanAngle": 0,
+          "curtainX": [
+            0.43999999999999995,
+            1.21
+          ]
+        }
+      }
+    },
+    {
+      "name": "Typing preserves canvas and animation",
+      "passed": true,
+      "elapsedMs": 90
+    },
+    {
+      "name": "Native D1 controls the bound study light",
+      "passed": true,
+      "elapsedMs": 863,
+      "evidence": {
+        "probability": 0.871072518645759,
+        "modelLatencyMs": 788,
+        "pixelMeanChange": 2.2672363126723667
+      }
+    },
+    {
+      "name": "Lighting outcome clarification and confirmation",
+      "passed": true,
+      "elapsedMs": 185,
+      "evidence": {
+        "firstStatus": "executed",
+        "firstSummary": "已补开书房吊灯。现在够亮了吗？",
+        "finalSummary": "已补开书房吊灯。现在够亮了吗？"
+      }
+    },
+    {
+      "name": "Recording export and isolated visual replay",
+      "passed": true,
+      "elapsedMs": 4421,
+      "evidence": {
+        "interactions": 2,
+        "allMatched": true,
+        "importedRoundTrip": true
+      }
+    },
+    {
+      "name": "Walking crosses the doorway with collision constraints",
+      "passed": true,
+      "elapsedMs": 1930,
+      "evidence": {
+        "x": 1.3536945581436157,
+        "z": -0.6703637838363647
+      }
+    },
+    {
+      "name": "Explicit referent and new speaking room remain distinct",
+      "passed": true,
+      "elapsedMs": 470,
+      "evidence": {
+        "referent": "关闭书房吊灯",
+        "currentRoom": "打开客厅灯",
+        "scope": "terminal"
+      }
+    },
+    {
+      "name": "Read-only state queries create no device effects",
+      "passed": true,
+      "elapsedMs": 101
+    },
+    {
+      "name": "TV, curtains and fan use verified simulator values",
+      "passed": true,
+      "elapsedMs": 359
+    },
+    {
+      "name": "Orbit rotation and keyboard walking remain interactive",
+      "passed": true,
+      "elapsedMs": 269
+    },
+    {
+      "name": "Voice low-confidence and permission failures have no effects",
+      "passed": true,
+      "elapsedMs": 1111
+    },
+    {
+      "name": "Voice fixture enters D1 once and optional TTS speaks the result",
+      "passed": true,
+      "elapsedMs": 659
+    },
+    {
+      "name": "390px responsive canvas, typing and follow view",
+      "passed": true,
+      "elapsedMs": 686,
+      "evidence": {
+        "overview": {
+          "width": 390,
+          "height": 455,
+          "colors": 341,
+          "occupied": 0.25848765432098764,
+          "mean": 220.63168724279834,
+          "hash": 1147091963,
+          "ready": true,
+          "frames": 651,
+          "drawCalls": 132,
+          "pose": {
+            "x": 1.4315919876098633,
+            "z": -0.9148396849632263
+          },
+          "room": "living",
+          "visual": {
+            "lamps": {
+              "study_spot": 12,
+              "study_ceiling": 0,
+              "living_power": 4.800000000000001
+            },
+            "tvEmissive": 0,
+            "fanAngle": 23.16500000000003,
+            "curtainX": [
+              0.27999999999999997,
+              1.37
+            ]
+          }
+        },
+        "follow": {
+          "width": 390,
+          "height": 455,
+          "colors": 520,
+          "occupied": 0.5385802469135802,
+          "mean": 208.3423353909465,
+          "hash": 2677970540,
+          "ready": true,
+          "frames": 681,
+          "drawCalls": 71,
+          "pose": {
+            "x": 1.4315919876098633,
+            "z": -0.9148396849632263
+          },
+          "room": "living",
+          "visual": {
+            "lamps": {
+              "study_spot": 12,
+              "study_ceiling": 0,
+              "living_power": 4.800000000000001
+            },
+            "tvEmissive": 0,
+            "fanAngle": 28.165000000000035,
+            "curtainX": [
+              0.27999999999999997,
+              1.37
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "768px responsive canvas, typing and follow view",
+      "passed": true,
+      "elapsedMs": 666,
+      "evidence": {
+        "overview": {
+          "width": 768,
+          "height": 530,
+          "colors": 820,
+          "occupied": 0.4064602960969044,
+          "mean": 212.88200986989682,
+          "hash": 266868570,
+          "ready": true,
+          "frames": 691,
+          "drawCalls": 132,
+          "pose": {
+            "x": 1.4315919876098633,
+            "z": -0.9148396849632263
+          },
+          "room": "living",
+          "visual": {
+            "lamps": {
+              "study_spot": 12,
+              "study_ceiling": 0,
+              "living_power": 4.800000000000001
+            },
+            "tvEmissive": 0,
+            "fanAngle": 29.832000000000026,
+            "curtainX": [
+              0.27999999999999997,
+              1.37
+            ]
+          }
+        },
+        "follow": {
+          "width": 768,
+          "height": 530,
+          "colors": 1024,
+          "occupied": 0.7284656796769852,
+          "mean": 199.46410946612832,
+          "hash": 3666333134,
+          "ready": true,
+          "frames": 721,
+          "drawCalls": 75,
+          "pose": {
+            "x": 1.4315919876098633,
+            "z": -0.9148396849632263
+          },
+          "room": "living",
+          "visual": {
+            "lamps": {
+              "study_spot": 12,
+              "study_ceiling": 0,
+              "living_power": 4.800000000000001
+            },
+            "tvEmissive": 0,
+            "fanAngle": 34.83200000000002,
+            "curtainX": [
+              0.27999999999999997,
+              1.37
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "No browser runtime errors",
+      "passed": true,
+      "elapsedMs": 0
+    }
+  ],
+  "passed": true,
+  "verification": {
+    "unit": {
+      "passed": 440,
+      "skipped": 3
+    },
+    "adapterSubset": {
+      "passed": 31
+    },
+    "harnessSubset": {
+      "passed": 143
+    },
+    "build": {
+      "passed": true,
+      "chunkSizeWarning": true
+    },
+    "launcher": {
+      "reuseVerified": true,
+      "occupiedPortRejected": true,
+      "existingPidUnchanged": true
+    },
+    "nativeRegression": {
+      "passed": 34,
+      "total": 36,
+      "inferenceCallsIncludingSetup": 52,
+      "p50Ms": 33.6726249999997,
+      "p95Ms": 381.80375000000004,
+      "unmet": [
+        {
+          "input": "还是太暗了",
+          "status": "needs_clarification",
+          "message": "要我补开书房吊灯吗？"
+        },
+        {
+          "input": "这样好多了",
+          "status": "needs_clarification",
+          "message": "我还不能确定你要控制、查询还是调整，请补充一下。"
+        }
+      ]
+    },
+    "nativeHoldout": {
+      "passed": 18,
+      "total": 18,
+      "inferenceCallsIncludingSetup": 25,
+      "p50Ms": 339.62300000000005,
+      "p95Ms": 610.2183340000001,
+      "unmet": []
+    },
+    "microphoneHardwareVerified": false,
+    "releaseGatePassed": false
+  }
+}

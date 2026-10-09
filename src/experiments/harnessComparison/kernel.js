@@ -89,9 +89,12 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
       const roomId = terminalRooms[origin?.terminalId];
       const home = await adapter.discoverHcmHome();
       const originRoom = home.spaces.find((room) => room.id === roomId);
-      if (originRoom && Number.isFinite(origin?.observedAt) && now() >= origin.observedAt && now() - origin.observedAt <= 10000) {
+      const freshOrigin = Number.isFinite(origin?.observedAt) && now() >= origin.observedAt && now() - origin.observedAt <= 10000;
+      if (originRoom && freshOrigin) {
         conversation.currentRoom = { id: originRoom.id, name: originRoom.name, source: "configured_terminal", observedAt: origin.observedAt };
         if (!conversation.focusedRooms.length) conversation.focusedRooms = [{ id: roomId }];
+      } else if (freshOrigin && Object.hasOwn(terminalRooms, origin?.terminalId) && roomId === null) {
+        conversation.uncertainOrigin = true;
       }
       const enriched = { choose: async (options) => {
         const targetIds = new Set(options.candidates[0]?.scope?.targetIds ?? []);

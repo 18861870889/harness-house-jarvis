@@ -1,0 +1,106 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createPiRuntime } from "../experiments/harnessComparison/piRuntime.js";
+import { HOUSE_BLUEPRINT, actorRoom, isValidActorPose, createSandboxHome } from "./houseBlueprint.js";
+
+const validId = (id) => typeof id === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id);
+function validateRequest(request) {
+  if (!validId(request?.commandId) || !validId(request?.sessionId) || typeof request.input !== "string" || !request.input.trim() || request.input.length > 500 || request.resumeFor && !validId(request.resumeFor)) throw new Error("invalid_request");
+  if (!isValidActorPose(request.pose)) throw new Error("invalid_actor_pose");
+  if (!["text", "voice", "replay"].includes(request.source)) throw new Error("invalid_source");
+  return { sessionId: request.sessionId, commandId: request.commandId, input: request.input.trim(), pose: { x: request.pose.x, z: request.pose.z }, source: request.source, ...(request.resumeFor ? { resumeFor: request.resumeFor } : {}) };
+}
+const signature = (result) => JSON.stringify({ status: result.status, actions: (result.actions ?? []).map(({ logicalAssetId, thingId, capabilityId, value }) => [logicalAssetId ?? thingId, capabilityId, value]) });
+function validateRecording(recording) {
+  if (recording?.version !== 1 || recording.blueprintVersion !== HOUSE_BLUEPRINT.version || recording.simulated !== true || !Array.isArray(recording.events) || !recording.events.length || recording.events.length > 20) throw new Error("invalid_recording");
+  if (recording.truncated) throw new Error("incomplete_recording");
+  const seen = new Map();
+  return recording.events.map((event) => {
+    if (!event || typeof event.result?.status !== "string" || event.result.actions !== undefined && (!Array.isArray(event.result.actions) || event.result.actions.some((action) => !action || typeof action !== "object"))) throw new Error("invalid_recording");
+    const request = validateRequest(event.request);
+    if (seen.has(request.commandId) || request.resumeFor && seen.get(request.resumeFor) !== request.sessionId) throw new Error("incomplete_recording");
+    seen.set(request.commandId, request.sessionId);
+    return request;
+  });
+}
+
+export async function createSandboxService({ client, now = Date.now } = {}) {
+  const directory = mkdtempSync(join(tmpdir(), "house-sandbox-"));
+  let runtime;
+  let home = createSandboxHome();
+  let capturedAt = now();
+  let busy = false;
+  let closed = false;
+  const identities = new Map();
+  const events = [];
+  let truncated = false;
+  try {
+    runtime = await createPiRuntime({ directory, client, initialHome: home, now, terminalRooms: { "sandbox-study": "study", "sandbox-living": "living", "sandbox-doorway": null } });
+  } catch (error) { rmSync(directory, { recursive: true, force: true }); throw error; }
+  const service = {
+    runtime,
+    snapshot: () => structuredClone({ mode: "simulation-only", decisionVersion: "v2", blueprintVersion: HOUSE_BLUEPRINT.version, home, capturedAt, busy, effects: runtime.kernel.writes }),
+    recording: () => structuredClone({ version: 1, blueprintVersion: HOUSE_BLUEPRINT.version, simulated: true, truncated, events }),
+    async command(raw, { signal } = {}) {
+      if (closed) throw new Error("sandbox_closed");
+      if (busy) throw new Error("runtime_busy");
+      const request = validateRequest(raw);
+      const fingerprint = JSON.stringify(request);
+      let identity = identities.get(request.commandId);
+      if (identity && identity.fingerprint !== fingerprint) throw new Error("command_id_conflict");
+      if (!identity) {
+        if (identities.size >= 1000) throw new Error("sandbox_capacity_reached");
+        const room = actorRoom(request.pose);
+        identity = { fingerprint, envelope: { sessionId: request.sessionId, commandId: request.commandId, input: request.input,
+          ...(request.resumeFor ? { resumeFor: request.resumeFor } : {}), origin: { terminalId: room ? `sandbox-${room}` : "sandbox-doorway", observedAt: now() } } };
+        identities.set(request.commandId, identity);
+      }
+      busy = true;
+      const before = structuredClone(home);
+      try {
+        const result = await runtime.run(identity.envelope, { signal });
+        home = await runtime.kernel.adapter.discoverHcmHome();
+        capturedAt = now();
+        if (!result.replayed) {
+          events.push({ request, result, before, after: structuredClone(home), capturedAt });
+          if (events.length > 20) { events.shift(); truncated = true; }
+        }
+        return { result, snapshot: { ...service.snapshot(), busy: false }, recordingCount: events.length };
+      } finally { busy = false; }
+    },
+    async replay(recording, { signal } = {}) {
+      if (closed) throw new Error("sandbox_closed");
+      if (busy) throw new Error("runtime_busy");
+      const requests = validateRecording(recording);
+      busy = true;
+      let isolated;
+      try {
+        isolated = await createSandboxService({ client, now });
+        const mapping = new Map();
+        const sessions = new Map();
+        const results = [];
+        for (const [index, request] of requests.entries()) {
+          signal?.throwIfAborted();
+          const id = `replay-${index}`;
+          const resumeFor = request.resumeFor ? mapping.get(request.resumeFor) : undefined;
+          if (request.resumeFor && !resumeFor) throw new Error("incomplete_recording");
+          mapping.set(request.commandId, id);
+          if (!sessions.has(request.sessionId)) sessions.set(request.sessionId, `replay-session-${sessions.size}`);
+          const { result } = await isolated.command({ ...request, commandId: id, sessionId: sessions.get(request.sessionId), source: "replay", ...(resumeFor ? { resumeFor } : {}) }, { signal });
+          results.push({ input: request.input, pose: request.pose, result, snapshot: isolated.snapshot(), matches: signature(result) === signature(recording.events[index].result ?? {}) });
+          if (["failed", "execution_unknown", "cancelled"].includes(result.status)) break;
+        }
+        return { simulated: true, results };
+      } finally { await isolated?.close(); busy = false; }
+    },
+    async close() {
+      if (busy) throw new Error("runtime_busy");
+      if (closed) return;
+      await runtime.close();
+      closed = true;
+      rmSync(directory, { recursive: true, force: true });
+    },
+  };
+  return service;
+}

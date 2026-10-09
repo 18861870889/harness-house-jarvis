@@ -11,6 +11,9 @@ function scopedConversation(input, home, conversation) {
   const explicit = findExplicitRoomIds(input, home);
   const referential = /它|这个|那个|那盏|这盏|刚才|刚刚/.test(input) || isReferentialControlInput(input) && !isRoomScopedFollowUpInput(input) && !goalHint(input);
   const location = conversation.currentRoom;
+  if (!explicit.length && !referential && conversation.uncertainOrigin) {
+    return { conversation: { ...conversation, focusedTargets: [], focusedRooms: [] }, source: "ambiguous_origin" };
+  }
   if (!explicit.length && !referential && location?.source === "configured_terminal" && home.spaces.some((room) => room.id === location.id)) {
     return { conversation: { ...conversation, focusedTargets: [], focusedRooms: [{ id: location.id }] }, source: "terminal" };
   }
