@@ -4,7 +4,7 @@
 
 This isolated experiment hardens the Pi Agent Core adaptation and applies the same business recovery contract to LangGraph JS. It does not migrate the active UI, Hermes integration, or production HA executor. All actuator calls use the simulated HCM household; optional semantic regression calls only the local D1 endpoint.
 
-Pi is now a viable candidate for the next D1-only control-path prototype. Its lower measured overhead remains useful, but is only a few milliseconds, not evidence of better intent recognition. Neither framework resolves the shared purpose-gate conflict described in [the initial comparison](D1_HARNESS_COMPARISON.md#important-semantic-finding).
+Pi is now a viable candidate for the next D1-only control-path prototype. Its lower measured overhead remains useful, but is only a few milliseconds, not evidence of better intent recognition. This report preserves the hardening baseline at commit `26872ef`. The later [intent/context v2 experiment](D1_INTENT_CONTEXT_V2.md) resolves the short-follow-up purpose contradiction in the isolated runtimes, but does not finish intent quality or migrate the product.
 
 Pinned versions remain Pi core/AI/official SQLite backend `0.99.2`, LangGraph `1.4.21`, and LangGraph SQLite checkpointer `1.0.4`. No dependencies were added or upgraded in this hardening step.
 
@@ -63,7 +63,7 @@ The new hardening suite contains **37 tests**, covering both runtimes unless a c
 - Dual-writer rejection, legacy schema/context migration, result compaction tombstones, and hard request/session caps.
 - Pi session LRU eviction and reopening an older conversation without losing context.
 
-The full suite passes **358 tests, with 3 skipped**, across 42 passing test files and one skipped file. The harness/client subset has **86 passing tests**. Adapter contract tests separately pass **31 tests**. The production build passes. Deterministic fixtures test execution and recovery mechanics, not language accuracy.
+At the hardening baseline, the full suite passed **358 tests, with 3 skipped**, across 42 passing test files and one skipped file. The harness/client subset had **86 passing tests**. Adapter contract tests separately passed **31 tests**. The production build passed. Current counts and native semantics are in [the v2 report](D1_INTENT_CONTEXT_V2.md#verification). Deterministic fixtures test execution and recovery mechanics, not language accuracy.
 
 The sustained Pi probe sends 2,000 measured simulated requests over one minute, across 20 conversation IDs, plus 100 warm-up requests. Each measured request is immediately resubmitted with the same ID. Ten percent are dry runs. It checks inference/effect counts, session-handle and result-retention bounds, and samples heap/RSS after forced GC. The final run passed in 59.99 seconds: 2,100 inference calls and 1,900 simulated effect calls including warm-ups, no additional calls for duplicate IDs, at most 4 open sessions and 64 retained detailed results. Post-GC heap growth was 1,443,832 bytes (about 1.4 MiB); latency p50/p95 was 7.19/8.69 ms. Temporary SQLite/WAL storage occupied about 16.5 MB. See [raw soak data](reports/pi-hardening-soak.json). This multi-session retention workload is different from the single-session latency benchmark below.
 
@@ -87,19 +87,19 @@ Use Node `24.13.1` or a compatible Node 24 runtime. Built-in `node:sqlite` is cu
 ```sh
 npm ci
 npm run test:harness
-npm run compare:harness -- --samples=100 --output=docs/reports/pi-hardening-fixture.json
-npm run soak:pi -- --iterations=2000 --duration-ms=60000 --output=docs/reports/pi-hardening-soak.json
-npm run compare:harness -- --live --output=docs/reports/pi-hardening-local-d1.json
+npm run compare:harness -- --v1 --samples=100 --output=/tmp/pi-hardening-fixture.json
+npm run soak:pi -- --iterations=2000 --duration-ms=60000 --output=/tmp/pi-current-soak.json
+npm run compare:harness -- --v1 --live --output=/tmp/pi-hardening-local-d1.json
 npm run test:adapter
 npm test
 npm run build
 ```
 
-Only the final `--live` comparison uses the LAN D1 endpoint, configurable with `D1_ENDPOINT`. It does not load `.env` HA credentials. All device adapters remain simulated, and temporary runtime databases are deleted when the scripts finish.
+Only the final `--live` comparison uses the LAN D1 endpoint, configurable with `D1_ENDPOINT`. It does not load `.env` HA credentials. All device adapters remain simulated, and temporary runtime databases are deleted when the scripts finish. Comparisons default to v2; `--v1` preserves the historical decision contract. The soak uses the current default runtime, so its new output must not be treated as the historical measurements above.
 
 ## Remaining Gates
 
-1. **Intent quality:** both frameworks still fail the same `关一下` purpose-gate case. Resolve the shared decision contract and test contextual follow-ups, queries, negations, scope ambiguity, and stale context without lowering safety thresholds to hide failures.
+1. **Intent quality:** the later v2 contract passes `关一下` and expands contextual, query, negation and goal tests without lowering thresholds. Native strict regression remains 34/36; calibrated scores and wider unseen-language evaluation are still needed. See [current results](D1_INTENT_CONTEXT_V2.md#verification).
 2. **Product integration:** add a switchable, simulation-only D1/Pi API path, recovery/capacity indicators, and conversation replay UX before changing the main default. Existing UI/server behavior is unchanged here.
 3. **Operational validation:** run multi-day service tests, actual filesystem-full testing, upgrade/restart drills, and native checkpoint archival. This report covers a one-minute soak and injected storage failures, not electrical power loss or multi-day leak freedom.
 4. **Real providers:** define provider-specific freshness, idempotency, and uncertain-effect reconciliation. A real HA effect cannot share the local SQLite transaction; no external exactly-once guarantee is made.

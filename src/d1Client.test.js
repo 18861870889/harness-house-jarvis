@@ -44,6 +44,17 @@ describe("native D1 client", () => {
     await expect(client.choose({ state: "test", candidates, purposeCandidates: [{ id: "control", label: "立即控制" }, { id: "query", label: "查询" }] })).rejects.toThrow("invalid decision");
   });
 
+  it("serializes the joint intent/action description instead of dropping it at the API boundary", async () => {
+    const fetchImpl = vi.fn(async () => response(good));
+    const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl });
+    const decisions = candidates.map((candidate) => ({ ...candidate, modelDescription: `完整决策：${candidate.label}` }));
+    await client.choose({ state: "当前用户指令：开灯", candidates: decisions, instructions: "选择意图与动作一致的决策" });
+    const payload = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(payload.questions.plan.instructions).toBe("选择意图与动作一致的决策");
+    expect(payload.questions.plan.criteria.p0).toBe(decisions[0].modelDescription);
+    expect(payload.questions.purpose).toBeUndefined();
+  });
+
   it("times out and releases the single inference slot", async () => {
     const fetchImpl = vi.fn((_url, { signal }) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")))));
     const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", timeoutMs: 10, fetchImpl });

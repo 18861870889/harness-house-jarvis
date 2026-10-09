@@ -20,7 +20,7 @@ const PURPOSES = [
 ];
 
 // Retrieval narrows the HCM catalogue; operation direction remains a D1 choice.
-export function buildD1Candidates({ input, home, conversation = {} }) {
+export function buildD1Candidates({ input, home, conversation = {}, semanticDecision = false }) {
   const catalog = compileHcmForPlanner(home);
   const roomIds = findExplicitRoomIds(input, home);
   const focusIds = new Set((conversation.focusedTargets ?? []).map((target) => target.id));
@@ -28,7 +28,7 @@ export function buildD1Candidates({ input, home, conversation = {} }) {
     ...(conversation.focusedRooms ?? []).map((room) => room.id),
     ...catalog.filter((device) => focusIds.has(device.id)).map((device) => device.roomId),
   ])];
-  const referential = /它|这个|那个/.test(input) || isReferentialControlInput(input) && !isRoomScopedFollowUpInput(input);
+  const referential = /它|这个|那个/.test(input) || semanticDecision && /那盏|这盏|刚才|刚刚/.test(input) || isReferentialControlInput(input) && !isRoomScopedFollowUpInput(input);
   let block = null;
   if (referential && roomIds.length === 0 && focusIds.size !== 1) block = "你指的是哪个设备？我先不操作。";
   if (/卧室|睡房/.test(input) && !home.spaces.some((room) => /主卧|次卧|儿童房/.test(room.name) && input.includes(room.name))) {
@@ -44,6 +44,7 @@ export function buildD1Candidates({ input, home, conversation = {} }) {
       || roomIds.length > 0 && localName.length >= 2 && input.includes(localName);
   }));
   const typeSets = TYPES.filter(([pattern]) => pattern.test(input)).map(([, types]) => types);
+  if (semanticDecision && /暗|亮一点|更亮|更暗|太亮|调亮|调暗|不够亮/.test(input)) typeSets.push(new Set(["light"]));
   if (named.length) devices = devices.filter((device) => named.includes(device) || genericLightRooms.includes(device.roomId) && ["light", "switch_panel"].includes(device.type));
   else if (referential) devices = devices.filter((device) => focusIds.has(device.id));
   else if (typeSets.length) devices = devices.filter((device) => typeSets.some((types) => types.has(device.type)));
@@ -61,6 +62,8 @@ export function buildD1Candidates({ input, home, conversation = {} }) {
   const candidates = [];
   const variables = [];
   const readOnly = /怎么|如何|能否|支持|有哪些|能做什么/.test(input);
+  const politeImmediateRequest = semanticDecision && /能否.*(?:帮我|替我).*(?:打开|关闭|开一下|关一下|调|设置)/.test(input) && !/怎么|如何|支持|有哪些/.test(input);
+  const enforceReadOnly = readOnly && !politeImmediateRequest;
   const forbiddenIds = new Set();
   // A negative instruction is a write boundary, not an instruction to invert the state.
   for (const clause of input.split(/[，,。；;]|但是|但|不过/).filter((text) => /不要|别|不许|不用|先不|暂时不/.test(text))) {
@@ -127,15 +130,15 @@ export function buildD1Candidates({ input, home, conversation = {} }) {
       : `说明${devices.map((device) => device.name).join("、")}如何控制、支持哪些能力，不执行`, intentType: "inventory_query", actions: [], summary: "查询设备能力。" });
     candidates.push({ id: "preference", label: "用户在描述偏好或建议，以后再处理，本次不操作", intentType: "unknown", actions: [], summary: "这条偏好暂未自动保存，没有操作设备。" });
   }
-  const permitted = candidates.filter((candidate) => (!readOnly || candidate.actions.length === 0) && candidate.actions.every((action) => !forbiddenIds.has(action.device_id)));
+  const permitted = candidates.filter((candidate) => (!enforceReadOnly || candidate.actions.length === 0) && candidate.actions.every((action) => !forbiddenIds.has(action.device_id)));
   if (block || permitted.length > 14) {
     ask.summary = block ?? "可选方案较多，请更具体地说明目标和操作。";
     return { candidates: [ask, noop], devices, block: ask.summary };
   }
-  if (readOnly && forbiddenIds.size === 0) {
-    return { candidates: [permitted.find((candidate) => candidate.id === "capabilities"), ask], devices, block: null, readOnly, forbiddenIds: [] };
+  if (enforceReadOnly && forbiddenIds.size === 0) {
+    return { candidates: [permitted.find((candidate) => candidate.id === "capabilities"), ask], devices, block: null, readOnly, enforceReadOnly, forbiddenIds: [] };
   }
-  return { candidates: [...permitted, ask, noop], devices, block: null, readOnly, forbiddenIds: [...forbiddenIds] };
+  return { candidates: [...permitted, ask, noop], devices, block: null, readOnly, enforceReadOnly, forbiddenIds: [...forbiddenIds] };
 }
 
 export async function decideWithD1({ input, home, conversation, client }) {

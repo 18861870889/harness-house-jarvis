@@ -6,6 +6,7 @@ import { createLangGraphRuntime } from "../src/experiments/harnessComparison/lan
 import { createD1Client } from "../src/d1Client.js";
 
 const live = process.argv.includes("--live");
+const decisionVersion = process.argv.includes("--v1") ? "v1" : "v2";
 const output = process.argv.find((arg) => arg.startsWith("--output="))?.slice(9);
 const sampleCount = Number(process.argv.find((arg) => arg.startsWith("--samples="))?.slice(10) ?? 100);
 if (!Number.isSafeInteger(sampleCount) || sampleCount < 10 || sampleCount > 2000) throw new Error("invalid_sample_count");
@@ -13,11 +14,11 @@ const root = mkdtempSync(join(tmpdir(), "house-harness-compare-"));
 const runtimes = {};
 const calls = { pi: 0, langgraph: 0 };
 const native = live ? createD1Client({ endpoint: process.env.D1_ENDPOINT ?? "http://192.168.1.154:8080/v1/systemone", timeoutMs: 5000 }) : null;
-const report = { mode: live ? "native_local_d1" : "deterministic_fixture_not_language_accuracy", durabilityContract: "transactional-result-context-v1", journalSynchronous: "FULL", prepareCheckpointBeforeEffects: true, warmupCount: live ? 0 : 10, node: process.version, simulatedDevices: true, frameworkVersions: { pi: "0.99.2", langgraph: "1.4.21" }, samples: {}, semantics: {} };
+const report = { mode: live ? "native_local_d1" : "deterministic_fixture_not_language_accuracy", decisionVersion, durabilityContract: "transactional-result-context-v1", journalSynchronous: "FULL", prepareCheckpointBeforeEffects: true, warmupCount: live ? 0 : 10, node: process.version, simulatedDevices: true, frameworkVersions: { pi: "0.99.2", langgraph: "1.4.21" }, samples: {}, semantics: {} };
 const factories = { pi: createPiRuntime, langgraph: createLangGraphRuntime };
 try {
   for (const [name, factory] of Object.entries(factories)) {
-    runtimes[name] = await factory({ directory: join(root, name), client: { async choose(options) {
+    runtimes[name] = await factory({ directory: join(root, name), decisionVersion, client: { async choose(options) {
       calls[name] += 1;
       if (native) return native.choose(options);
       const candidate = options.candidates.find((item) => item.actions?.length && item.actions.every((action) => action.value === true)) ?? options.candidates.find((item) => item.id === "clarify");

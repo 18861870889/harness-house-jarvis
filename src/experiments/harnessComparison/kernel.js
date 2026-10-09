@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { createExecutionJournal } from "./executionJournal.js";
 import { decideWithD1 } from "../../d1Decision.js";
+import { decideWithD1V2 } from "../../d1DecisionV2.js";
 import { createConversationContextStore } from "../../conversationContext.js";
 import { normalizeHcmPlannerDraft } from "../../hcmPlanner.js";
 import { buildHcmExecutionPlan } from "../../hcmExecutor.js";
@@ -9,10 +10,11 @@ import { simulateProviderExecutionPlan, executeSimulatedProviderPlan, verifyProv
 
 const TTL = 30 * 60 * 1000;
 const validId = (id) => typeof id === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id);
-export const emptyState = () => ({ turns: [], pending: null, updatedAt: 0, revision: 0 });
+export const emptyState = () => ({ turns: [], pending: null, goalTask: null, updatedAt: 0, revision: 0 });
 
 // Business-side admission and effect tracking are deliberately identical for both SDKs.
-export function createKernel({ directory, client, now = Date.now, terminalRooms = {}, afterEffect, beforeExecute, initialHome, lifecycle, ...storageLimits }) {
+export function createKernel({ directory, client, now = Date.now, terminalRooms = {}, decisionVersion = "v2", afterEffect, beforeExecute, initialHome, lifecycle, ...storageLimits }) {
+  if (!["v1", "v2"].includes(decisionVersion)) throw new Error("invalid_decision_version");
   const journal = createExecutionJournal({ directory, ...storageLimits });
   const persisted = journal.getWorld();
   const adapter = createD1DemoAdapter({ home: persisted ? JSON.parse(persisted.home) : initialHome ?? createD1DemoHome() });
@@ -35,7 +37,13 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
     if (now() - state.updatedAt <= TTL) {
       for (const turn of state.turns) store.record("session", turn);
     }
-    return store.get("session");
+    const conversation = store.get("session");
+    if (state.goalTask?.status === "awaiting_user_feedback" && now() - state.goalTask.updatedAt <= TTL) conversation.activeGoalTask = state.goalTask;
+    else if (state.pending?.proposal?.goal && now() - state.pending.createdAt <= TTL) {
+      conversation.activeGoalTask = { domain: "lighting", roomId: state.pending.proposal.goal.space_refs[0], desiredOutcome: state.pending.proposal.goal.desired_outcome,
+        status: "awaiting_confirmation", evidence: "proposed_only", commandId: state.pending.commandId, updatedAt: state.pending.createdAt };
+    }
+    return conversation;
   }
 
   return {
@@ -75,21 +83,25 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
       const conversation = context(state);
       const pending = state.pending && now() - state.pending.createdAt <= TTL ? state.pending : null;
       if (request.resumeFor && (!pending || pending.commandId !== request.resumeFor)) throw new Error("stale_clarification");
-      const input = request.resumeFor ? `${pending.input}；用户补充：${request.input}` : request.input;
+      const input = request.resumeFor ? `${pending.input}；${pending.proposal ? `待确认方案：${pending.proposal.label}；` : ""}用户补充：${request.input}` : request.input;
       // A configured microphone terminal is evidence; a selected UI room is not.
       const origin = request.origin;
       const roomId = terminalRooms[origin?.terminalId];
-      if (!conversation.focusedRooms.length && roomId && Number.isFinite(origin?.observedAt) && now() >= origin.observedAt && now() - origin.observedAt <= 10000) {
-        conversation.focusedRooms = [{ id: roomId }];
-      }
       const home = await adapter.discoverHcmHome();
+      const originRoom = home.spaces.find((room) => room.id === roomId);
+      if (originRoom && Number.isFinite(origin?.observedAt) && now() >= origin.observedAt && now() - origin.observedAt <= 10000) {
+        conversation.currentRoom = { id: originRoom.id, name: originRoom.name, source: "configured_terminal", observedAt: origin.observedAt };
+        if (!conversation.focusedRooms.length) conversation.focusedRooms = [{ id: roomId }];
+      }
       const enriched = { choose: async (options) => {
-        const history = conversation.recentTurns.slice(-3).map((turn) => `用户：${turn.input.slice(0, 120)}；结果：${turn.status}；目标：${turn.targetNames.join("、")}`).join("\n");
+        const targetIds = new Set(options.candidates[0]?.scope?.targetIds ?? []);
+        const history = conversation.recentTurns.filter((turn) => decisionVersion === "v1" || !targetIds.size || turn.targetIds.some((id) => targetIds.has(id))).slice(-3)
+          .map((turn) => `用户：${turn.input.slice(0, 120)}；结果：${turn.status}；目标：${turn.targetNames.join("、")}`).join("\n");
         const result = await client.choose({ ...options, state: `${history ? `最近对话（dry_run仅预演，不代表设备变化）：\n${history}\n` : ""}${options.state}`, signal });
         if (!options.candidates.some((candidate) => JSON.stringify(candidate) === JSON.stringify(result.candidate)) || !Number.isFinite(result.probability) || !Number.isFinite(result.margin)) throw new Error("invalid_choice_outside_candidate_set");
         return result;
       } };
-      const draft = await decideWithD1({ input, home, conversation, client: enriched });
+      const draft = await (decisionVersion === "v2" ? decideWithD1V2 : decideWithD1)({ input, home, conversation, client: enriched });
       signal?.throwIfAborted();
       const decision = { draft, home, input };
       journal.prepare(request.commandId, decision);
@@ -124,8 +136,33 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
       }
       const turn = { input: request.input, plan, execution: { status } };
       const turns = now() - state.updatedAt <= TTL ? state.turns : [];
-      const next = { turns: [...turns, turn].slice(-6), updatedAt: now(), revision: state.revision ?? 0, pending: status === "needs_clarification" ? { commandId: request.commandId, input: decision.input, createdAt: now() } : null };
-      const result = { status, summary: decision.draft.summary, actions: plan.actions, selectedId: decision.draft.d1.selectedId, d1: decision.draft.d1, results, simulated: true, context: context(next) };
+      let goalTask = state.goalTask && now() - state.goalTask.updatedAt <= TTL ? state.goalTask : null;
+      let goalProgress;
+      if (!goalTask && decision.draft.goalFeedback && state.pending?.proposal?.goal && now() - state.pending.createdAt <= TTL) {
+        goalTask = { domain: "lighting", roomId: state.pending.proposal.goal.space_refs[0], desiredOutcome: state.pending.proposal.goal.desired_outcome,
+          status: "awaiting_user_feedback", commandId: state.pending.commandId, proposedOnly: true, updatedAt: state.pending.createdAt };
+      }
+      if (status === "executed" && decision.draft.goal) {
+        goalTask = { domain: "lighting", roomId: decision.draft.goal.space_refs[0], desiredOutcome: decision.draft.goal.desired_outcome,
+          status: "awaiting_user_feedback", evidence: "device_readback_only", commandId: request.commandId, updatedAt: now() };
+        goalProgress = goalTask;
+      } else if (decision.draft.goalFeedback === "satisfied" && goalTask?.status === "awaiting_user_feedback") {
+        goalTask = { ...goalTask, status: "satisfied_by_user", evidence: "explicit_user_feedback", updatedAt: now() };
+        goalProgress = goalTask;
+      } else if (decision.draft.goalFeedback === "improved" && goalTask?.status === "awaiting_user_feedback") {
+        goalTask = { ...goalTask, userAssessment: "improved", evidence: "explicit_user_feedback", updatedAt: now() };
+        goalProgress = { ...goalTask, status: "improved_by_user" };
+      } else if (status === "executed") goalTask = null;
+      const next = { turns: [...turns, turn].slice(-6), updatedAt: now(), revision: state.revision ?? 0, goalTask, pending: status === "needs_clarification" ? { commandId: request.commandId, input: decision.input, createdAt: now(), ...(decision.draft.proposal ? { proposal: decision.draft.proposal } : {}) } : null };
+      let summary = status === "answered" && plan.stateQuery?.summary ? plan.stateQuery.summary : decision.draft.summary;
+      if (status === "dry_run") summary = `模拟预演：${summary}。设备未实际执行。`;
+      if (goalProgress?.status === "awaiting_user_feedback") {
+        const action = plan.actions[0];
+        const name = action.logicalAssetName ?? action.thingName;
+        summary = typeof action.value === "number" ? `已将${name}亮度调到${action.value}%。` : `已${action.value ? "补开" : "关闭"}${name}。`;
+        summary += goalTask.desiredOutcome === "brighter" ? "现在够亮了吗？" : "现在亮度合适吗？";
+      }
+      const result = { status, summary, actions: plan.actions, selectedId: decision.draft.d1.selectedId, d1: decision.draft.d1, results, simulated: true, context: context(next), ...(goalProgress ? { goalProgress } : {}), ...(decision.draft.proposal ? { proposal: decision.draft.proposal } : {}) };
       const committed = journal.complete(request, result, next);
       await lifecycle?.("after_commit");
       return { state: committed, result };

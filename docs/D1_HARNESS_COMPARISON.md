@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The measurements and recommendation below are the **initial comparison baseline**. Subsequent [Pi hardening](PI_HARNESS_HARDENING.md) adds atomic result/conversation persistence, projection repair, actual process-kill tests, bounded Pi sessions, and comparable durability benchmarks. Pi is now a viable next-prototype candidate; the initial LangGraph preference is not the current final decision. Neither runtime has been migrated into the active UI, and the shared intent-gate failure remains unresolved.
+The measurements and recommendation below are the **initial comparison baseline**. Subsequent [Pi hardening](PI_HARNESS_HARDENING.md) adds atomic result/conversation persistence, projection repair, actual process-kill tests, bounded Pi sessions, and comparable durability benchmarks. Pi is now a viable next-prototype candidate; the initial LangGraph preference is not the current final decision. [Intent/context v2](D1_INTENT_CONTEXT_V2.md) now replaces the contradictory independent purpose question in the isolated runtimes and passes the short close follow-up. Its broader native regression is 34/36, not complete semantic coverage. Neither runtime has been migrated into the active UI.
 
 ## Initial Decision
 
@@ -44,11 +44,11 @@ Use Node `24.13.1` or a compatible Node 24 runtime; these experiments use built-
 ```sh
 npm ci
 npm run test:harness
-npm run compare:harness -- --output=docs/reports/pi-hardening-fixture.json
-npm run compare:harness -- --live --output=docs/reports/pi-hardening-local-d1.json
+npm run compare:harness -- --v1 --output=/tmp/harness-v1-fixture.json
+npm run compare:harness -- --v1 --live --output=/tmp/harness-v1-local-d1.json
 ```
 
-The live command defaults to the configured LAN D1 endpoint; `D1_ENDPOINT` can override it. It does not use `.env` HA credentials. All device writes are in memory. Temporary framework databases are removed at exit.
+The live command defaults to the configured LAN D1 endpoint; `D1_ENDPOINT` can override it. It does not use `.env` HA credentials. All device writes are in memory. Temporary framework databases are removed at exit. Omit `--v1` to test the current v2 contract; the committed historical reports are preserved.
 
 ## Verification
 
@@ -58,11 +58,11 @@ Separate Node-process probes verify durable context, simulated world state, and 
 
 Initial verification on Node `24.13.1`: **321 tests passed, 3 skipped**, across 41 passing test files and one skipped file. The original harness/client subset contains 49 passing tests. `npm run build` passed. The live report evaluates seven shared cases without injecting expected choices into model input. Both frameworks passed six; the same contextual follow-up failed in both. Current verification and additional hardening cases are recorded in [the hardening report](PI_HARNESS_HARDENING.md#verification).
 
-### Important semantic finding
+### Historical semantic finding
 
 After `打开书房射灯`, D1 selected the correct close action for `关一下` with a plan score of approximately `0.961`. There was no scope block: the focused target was successfully retrieved. However, the independent purpose question scored immediate control at approximately `0.578`, versus no-write at `0.391` (margin `0.187`). The existing gate requires `0.65` and margin `0.20`; it therefore asked for clarification.
 
-This isolates a conflict between the **candidate decision and independent purpose gate**, not loss of framework context. No threshold was lowered. The next semantic experiment should clarify current-turn intent and safe cancellation in a shared decision contract, then test short follow-ups, negative instructions, queries, multi-room ambiguity, and stale context as a regression matrix. A score is not calibrated execution-success probability.
+This isolates a conflict between the **candidate decision and independent purpose gate**, not loss of framework context. No threshold was lowered. The subsequent [v2 experiment](D1_INTENT_CONTEXT_V2.md) implements a joint decision contract and the wider regression matrix, while retaining separate capability and permission checks. Two strict goal/feedback cases still need clarification. A score is not calibrated execution-success probability.
 
 State-query success in this report means correct read-only routing with no actions, not quality of a natural-language response. D1 is not a general conversational answer generator.
 

@@ -1,0 +1,2088 @@
+{
+  "mode": "native_local_d1",
+  "suite": "regression",
+  "simulatedDevices": true,
+  "cloudFallback": false,
+  "expectedResultsSentToModel": false,
+  "node": "v24.13.1",
+  "versions": {
+    "v1": {
+      "passed": 25,
+      "total": 36,
+      "inferenceCallsIncludingSetup": 52,
+      "p50Ms": 119.37991599999987,
+      "p95Ms": 165.4143750000003,
+      "results": [
+        {
+          "input": "打开书房射灯",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 205.427208,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+          "probability": 0.7781187559017255,
+          "margin": 0.7052730810998494,
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+          "message": "打开书房射灯",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "关一下",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "书房射灯",
+              false
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 128.70833299999998,
+          "correctCandidatePresent": true,
+          "selectedId": "clarify",
+          "probability": 0.9610454965202279,
+          "margin": 0.9419711921375327,
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+          "message": "你希望操作哪个设备、如何调整？",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "把刚才那个关掉",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "书房射灯",
+              false
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 138.83058300000005,
+          "correctCandidatePresent": true,
+          "selectedId": "clarify",
+          "probability": 0.9718864153482989,
+          "margin": 0.9635076959428731,
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+          "message": "你希望操作哪个设备、如何调整？",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "开灯",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "客厅灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 124.63020900000004,
+          "correctCandidatePresent": false,
+          "selectedId": "clarify",
+          "probability": 0.5248173467962399,
+          "margin": 0.3798724196960317,
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true],[\"asset_study_书房吊灯\",\"power\",true]]",
+          "message": "我还不能确定你的意思，请说清楚房间、设备和操作。",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "打开主卧灯",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "主卧灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "主卧灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 132.1762080000001,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"master_light\",\"master_power\",true]]",
+          "probability": 0.8582434468041149,
+          "margin": 0.8059654978572337,
+          "providerWinnerId": "actions:[[\"master_light\",\"master_power\",true]]",
+          "message": "打开主卧灯",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "开灯",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 133.09083299999998,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.6195976134811181,
+          "margin": 0.2391952269622361,
+          "providerWinnerId": "no_action",
+          "message": "你想操作哪个房间的设备？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "开灯",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 146.52308299999982,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.6195976134811181,
+          "margin": 0.2391952269622361,
+          "providerWinnerId": "no_action",
+          "message": "你想操作哪个房间的设备？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "开灯",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 129.03166699999997,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.6195976134811181,
+          "margin": 0.2391952269622361,
+          "providerWinnerId": "no_action",
+          "message": "你想操作哪个房间的设备？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "能否帮我把书房射灯打开一下",
+          "pass": false,
+          "status": "answered",
+          "actual": [],
+          "expected": [
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 110.55429200000003,
+          "correctCandidatePresent": false,
+          "selectedId": "capabilities",
+          "probability": 0.9089964854001067,
+          "margin": 0.8179929708002134,
+          "providerWinnerId": "capabilities",
+          "message": "书房射灯：可直接执行：控制回路开关。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "客厅电视怎么打开",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 99.83579199999986,
+          "correctCandidatePresent": null,
+          "selectedId": "capabilities",
+          "probability": 0.8059846751322743,
+          "margin": 0.6119693502645487,
+          "providerWinnerId": "capabilities",
+          "message": "客厅电视：可直接执行：电源。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调支持哪些温度设置",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 103.6366250000001,
+          "correctCandidatePresent": null,
+          "selectedId": "capabilities",
+          "probability": 0.75593693733563,
+          "margin": 0.5118738746712601,
+          "providerWinnerId": "capabilities",
+          "message": "书房空调：可直接执行：温度。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调能否调到25度",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 100.64787499999966,
+          "correctCandidatePresent": null,
+          "selectedId": "capabilities",
+          "probability": 0.7863367969363608,
+          "margin": 0.5726735938727217,
+          "providerWinnerId": "capabilities",
+          "message": "书房空调：可直接执行：温度。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "玄关人体目前是什么状态",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 109.11191700000018,
+          "correctCandidatePresent": null,
+          "selectedId": "state:entry_motion",
+          "probability": 0.870846855928163,
+          "margin": 0.8148857993007427,
+          "providerWinnerId": "state:entry_motion",
+          "message": "玄关的玄关人体传感器：暂无可读状态。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房射灯现在开着吗",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 122.97941700000001,
+          "correctCandidatePresent": null,
+          "selectedId": "state:asset_study_书房射灯",
+          "probability": 0.44779342774141384,
+          "margin": 0.2229343252151144,
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+          "message": "书房射灯：控制回路已关闭，由书房开关左键控制。该状态来自开关继电器，未独立确认灯具实际发光。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "不要打开书房射灯",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 123.22283299999981,
+          "correctCandidatePresent": null,
+          "selectedId": "no_action",
+          "probability": 0.7924832648077705,
+          "margin": 0.6683313373957406,
+          "providerWinnerId": "no_action",
+          "message": "没有操作设备。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "别关闭客厅电视",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 110.27649999999994,
+          "correctCandidatePresent": null,
+          "selectedId": "no_action",
+          "probability": 0.8713136545664876,
+          "margin": 0.8121483515392725,
+          "providerWinnerId": "no_action",
+          "message": "没有操作设备。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "以后书房开灯优先射灯",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 119.37991599999987,
+          "correctCandidatePresent": null,
+          "selectedId": "preference",
+          "probability": 0.8125338801824504,
+          "margin": 0.7153393915540414,
+          "providerWinnerId": "preference",
+          "message": "这条偏好暂未自动保存，没有操作设备。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房灯不要开，但打开客厅电视",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "客厅电视",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "客厅电视",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 148.94154200000003,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"living_tv\",\"tv_power\",true]]",
+          "probability": 0.9373241361317582,
+          "margin": 0.9193981638654052,
+          "providerWinnerId": "actions:[[\"living_tv\",\"tv_power\",true]]",
+          "message": "打开客厅电视，书房射灯、书房吊灯保持不变",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "打开书房射灯，但关闭书房吊灯",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房吊灯",
+              false
+            ],
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "书房吊灯",
+              false
+            ],
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 165.4143750000003,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",true],[\"asset_study_书房吊灯\",\"power\",false]]",
+          "probability": 0.961764503845988,
+          "margin": 0.9484082372983963,
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true],[\"asset_study_书房吊灯\",\"power\",false]]",
+          "message": "打开书房射灯，关闭书房吊灯",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "卧室灯关一下",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 101.08141699999987,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9007975324846668,
+          "margin": 0.8015950649693335,
+          "providerWinnerId": "no_action",
+          "message": "你指的是主卧还是次卧？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "把它关了",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [
+            {
+              "input": "打开书房所有灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 127.35695799999985,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9300809538545234,
+          "margin": 0.8601619077090468,
+          "providerWinnerId": "no_action",
+          "message": "你指的是哪个设备？我先不操作。",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "打开空气净化器",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 93.69245799999999,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.7091723809606271,
+          "margin": 0.41834476192125425,
+          "providerWinnerId": "clarify",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调调到99度",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 103.17066699999987,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.6131881478264155,
+          "margin": 0.22637629565283102,
+          "providerWinnerId": "no_action",
+          "message": "书房空调的设置值超出已知能力范围，或者设备未提供范围。请确认数值。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "把书房射灯亮度调到50%",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 117.82945900000004,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.79147784325963,
+          "margin": 0.5829556865192601,
+          "providerWinnerId": "no_action",
+          "message": "书房射灯没有已确认的对应数值调节能力，我先不操作。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调24度，客厅窗帘30%",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 118.30412500000011,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.5286265729816908,
+          "margin": 0.057253145963381546,
+          "providerWinnerId": "clarify",
+          "message": "这条指令包含多个设置值，请逐个设备说明，避免把数值对应错。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "餐厅射灯打开",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "餐厅射灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "餐厅射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 119.66424999999981,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_dining_餐厅射灯\",\"power\",true]]",
+          "probability": 0.8195282259666956,
+          "margin": 0.7557830235280691,
+          "providerWinnerId": "actions:[[\"asset_dining_餐厅射灯\",\"power\",true]]",
+          "message": "打开餐厅射灯",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "书房空调调到24度",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房空调",
+              24
+            ]
+          ],
+          "expected": [
+            [
+              "书房空调",
+              24
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 109.22741599999972,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"study_ac\",\"study_temperature\",24]]",
+          "probability": 0.9673893211937641,
+          "margin": 0.9574123147526018,
+          "providerWinnerId": "actions:[[\"study_ac\",\"study_temperature\",24]]",
+          "message": "设置书房空调为24",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "客厅窗帘调到30%",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "客厅窗帘",
+              30
+            ]
+          ],
+          "expected": [
+            [
+              "客厅窗帘",
+              30
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 122.13141700000051,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"living_curtain\",\"curtain_position\",30]]",
+          "probability": 0.8954439415665256,
+          "margin": 0.8383460273766065,
+          "providerWinnerId": "actions:[[\"living_curtain\",\"curtain_position\",30]]",
+          "message": "设置客厅窗帘为30",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "还是太暗了",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "书房吊灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 112.05804200000057,
+          "correctCandidatePresent": false,
+          "selectedId": "clarify",
+          "probability": 0.6022160343257253,
+          "margin": 0.20443206865145064,
+          "providerWinnerId": "no_action",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "客厅再亮一点",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "客厅灯",
+              60
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开客厅灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 114.27895900000021,
+          "correctCandidatePresent": false,
+          "selectedId": "clarify",
+          "probability": 0.5892566473658292,
+          "margin": 0.17851329473165833,
+          "providerWinnerId": "clarify",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "客厅太亮了",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "客厅灯",
+              20
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开客厅灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 108.91987499999959,
+          "correctCandidatePresent": false,
+          "selectedId": "clarify",
+          "probability": 0.7724223832776466,
+          "margin": 0.5448447665552931,
+          "providerWinnerId": "no_action",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "书房还是太暗",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [
+            {
+              "input": "打开书房所有灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 116.90620800000033,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.5121502793167837,
+          "margin": 0.024300558633567393,
+          "providerWinnerId": "clarify",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "这样好多了",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            },
+            {
+              "input": "还是太暗了",
+              "status": "needs_clarification"
+            }
+          ],
+          "elapsedMs": 131.22683300000062,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.6046205409047706,
+          "margin": 0.2092410818095412,
+          "providerWinnerId": "clarify",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "取消",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 94.11883300000045,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9816241011939961,
+          "margin": 0.9632482023879922,
+          "providerWinnerId": "no_action",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "可以",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "书房吊灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            },
+            {
+              "input": "还是太暗了",
+              "status": "needs_clarification"
+            }
+          ],
+          "elapsedMs": 132.4004589999995,
+          "correctCandidatePresent": false,
+          "selectedId": "clarify",
+          "probability": 0.6515376287591658,
+          "margin": 0.3030752575183315,
+          "providerWinnerId": "clarify",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "好多了",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            },
+            {
+              "input": "还是太暗了",
+              "status": "needs_clarification"
+            },
+            {
+              "input": "可以",
+              "status": "needs_clarification"
+            }
+          ],
+          "elapsedMs": 131.36104200000045,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.7611895220881667,
+          "margin": 0.5223790441763334,
+          "providerWinnerId": "clarify",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 1
+        }
+      ]
+    },
+    "v2": {
+      "passed": 34,
+      "total": 36,
+      "inferenceCallsIncludingSetup": 52,
+      "p50Ms": 86.26058399999965,
+      "p95Ms": 126.25670799999898,
+      "results": [
+        {
+          "input": "打开书房射灯",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 87.40750000000025,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+          "probability": 0.8987501195486505,
+          "margin": 0.8523927333132835,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+          "message": "打开书房射灯",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "关一下",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房射灯",
+              false
+            ]
+          ],
+          "expected": [
+            [
+              "书房射灯",
+              false
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 124.41933299999982,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+          "probability": 0.9595914224833958,
+          "margin": 0.941960291214376,
+          "scope": {
+            "source": "conversation_target",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+          "message": "关闭书房射灯",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "把刚才那个关掉",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房射灯",
+              false
+            ]
+          ],
+          "expected": [
+            [
+              "书房射灯",
+              false
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 93.7680420000006,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+          "probability": 0.9716049981725466,
+          "margin": 0.964302896429294,
+          "scope": {
+            "source": "conversation_target",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",false]]",
+          "message": "关闭书房射灯",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "开灯",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "客厅灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "客厅灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 72.05337500000041,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"living_light\",\"living_power\",true]]",
+          "probability": 0.9080418187373884,
+          "margin": 0.867421394141287,
+          "scope": {
+            "source": "terminal",
+            "roomIds": [
+              "living"
+            ],
+            "targetIds": [
+              "living_light"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"living_light\",\"living_power\",true]]",
+          "message": "打开客厅灯",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "打开主卧灯",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "主卧灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "主卧灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 82.65045800000007,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"master_light\",\"master_power\",true]]",
+          "probability": 0.9134841271018311,
+          "margin": 0.8734800050907795,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "master"
+            ],
+            "targetIds": [
+              "master_light"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"master_light\",\"master_power\",true]]",
+          "message": "打开主卧灯",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "开灯",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 86.26058399999965,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9086740235369635,
+          "margin": 0.817348047073927,
+          "scope": {
+            "source": "unspecified",
+            "roomIds": [
+              "living",
+              "master",
+              "second",
+              "dining",
+              "study"
+            ],
+            "targetIds": [
+              "living_light",
+              "master_light",
+              "second_light",
+              "asset_dining_餐厅射灯",
+              "asset_dining_餐厅吊灯",
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "clarify",
+          "message": "你想操作哪个房间的设备？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "开灯",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 86.56887499999993,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9086740235369635,
+          "margin": 0.817348047073927,
+          "scope": {
+            "source": "unspecified",
+            "roomIds": [
+              "living",
+              "master",
+              "second",
+              "dining",
+              "study"
+            ],
+            "targetIds": [
+              "living_light",
+              "master_light",
+              "second_light",
+              "asset_dining_餐厅射灯",
+              "asset_dining_餐厅吊灯",
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "clarify",
+          "message": "你想操作哪个房间的设备？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "开灯",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 81.66933400000016,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9086740235369635,
+          "margin": 0.817348047073927,
+          "scope": {
+            "source": "unspecified",
+            "roomIds": [
+              "living",
+              "master",
+              "second",
+              "dining",
+              "study"
+            ],
+            "targetIds": [
+              "living_light",
+              "master_light",
+              "second_light",
+              "asset_dining_餐厅射灯",
+              "asset_dining_餐厅吊灯",
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "clarify",
+          "message": "你想操作哪个房间的设备？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "能否帮我把书房射灯打开一下",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 88.12766700000066,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+          "probability": 0.9326541264644995,
+          "margin": 0.9036423924919657,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true]]",
+          "message": "打开书房射灯",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "客厅电视怎么打开",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 63.33874999999989,
+          "correctCandidatePresent": null,
+          "selectedId": "capabilities",
+          "probability": 0.781767797198709,
+          "margin": 0.5635355943974181,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "living"
+            ],
+            "targetIds": [
+              "living_tv"
+            ]
+          },
+          "providerWinnerId": "capabilities",
+          "message": "客厅电视：可直接执行：电源。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调支持哪些温度设置",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 68.41504199999963,
+          "correctCandidatePresent": null,
+          "selectedId": "capabilities",
+          "probability": 0.7301322419836433,
+          "margin": 0.46026448396728664,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "study_ac"
+            ]
+          },
+          "providerWinnerId": "capabilities",
+          "message": "书房空调：可直接执行：温度。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调能否调到25度",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 73.02045799999996,
+          "correctCandidatePresent": null,
+          "selectedId": "capabilities",
+          "probability": 0.7322552261758783,
+          "margin": 0.46451045235175675,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "study_ac"
+            ]
+          },
+          "providerWinnerId": "capabilities",
+          "message": "书房空调：可直接执行：温度。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "玄关人体目前是什么状态",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 87.45175000000017,
+          "correctCandidatePresent": null,
+          "selectedId": "state:entry_motion",
+          "probability": 0.914274505157924,
+          "margin": 0.8677153173881502,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "entry"
+            ],
+            "targetIds": [
+              "entry_motion"
+            ]
+          },
+          "providerWinnerId": "state:entry_motion",
+          "message": "玄关的玄关人体传感器：暂无可读状态。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房射灯现在开着吗",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 94.57504100000006,
+          "correctCandidatePresent": null,
+          "selectedId": "state:asset_study_书房射灯",
+          "probability": 0.9291456176960883,
+          "margin": 0.9006451903012426,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "state:asset_study_书房射灯",
+          "message": "书房射灯：控制回路已关闭，由书房开关左键控制。该状态来自开关继电器，未独立确认灯具实际发光。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "不要打开书房射灯",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 79.34566599999926,
+          "correctCandidatePresent": null,
+          "selectedId": "no_action",
+          "probability": 0.8290236201829279,
+          "margin": 0.6939883340975539,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "no_action",
+          "message": "没有操作设备。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "别关闭客厅电视",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 75.14433400000053,
+          "correctCandidatePresent": null,
+          "selectedId": "no_action",
+          "probability": 0.9364616991070617,
+          "margin": 0.902804574591071,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "living"
+            ],
+            "targetIds": [
+              "living_tv"
+            ]
+          },
+          "providerWinnerId": "no_action",
+          "message": "没有操作设备。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "以后书房开灯优先射灯",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 93.66100000000006,
+          "correctCandidatePresent": null,
+          "selectedId": "preference",
+          "probability": 0.8429583355084177,
+          "margin": 0.7841633446173465,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "preference",
+          "message": "这条偏好暂未自动保存，没有操作设备。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房灯不要开，但打开客厅电视",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "客厅电视",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "客厅电视",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 137.9076670000013,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"living_tv\",\"tv_power\",true]]",
+          "probability": 0.9538564501084551,
+          "margin": 0.9437206098057113,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study",
+              "living"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯",
+              "living_tv"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"living_tv\",\"tv_power\",true]]",
+          "message": "打开客厅电视，书房射灯、书房吊灯保持不变",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "打开书房射灯，但关闭书房吊灯",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房吊灯",
+              false
+            ],
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "书房吊灯",
+              false
+            ],
+            [
+              "书房射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 118.63966699999946,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_study_书房射灯\",\"power\",true],[\"asset_study_书房吊灯\",\"power\",false]]",
+          "probability": 0.9781921081011279,
+          "margin": 0.9743193466763359,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"asset_study_书房射灯\",\"power\",true],[\"asset_study_书房吊灯\",\"power\",false]]",
+          "message": "打开书房射灯，关闭书房吊灯",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "卧室灯关一下",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 67.24041600000055,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.6465449958272426,
+          "margin": 0.2930899916544851,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "master"
+            ],
+            "targetIds": [
+              "master_light"
+            ]
+          },
+          "providerWinnerId": "no_action",
+          "message": "你指的是主卧还是次卧？",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "把它关了",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [
+            {
+              "input": "打开书房所有灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 81.34245899999951,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9300432996784265,
+          "margin": 0.8600865993568528,
+          "scope": {
+            "source": "conversation_target",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "no_action",
+          "message": "你指的是哪个设备？我先不操作。",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "打开空气净化器",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 67.88612499999908,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9806182619438651,
+          "margin": 0.9612365238877304,
+          "scope": {
+            "source": "unspecified",
+            "roomIds": [],
+            "targetIds": []
+          },
+          "providerWinnerId": "clarify",
+          "message": "没有找到明确且已适配的设备。请说明房间和设备名称。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调调到99度",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 66.52024999999958,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.6212061505178879,
+          "margin": 0.2424123010357757,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "study_ac"
+            ]
+          },
+          "providerWinnerId": "clarify",
+          "message": "书房空调的设置值超出已知能力范围，或者设备未提供范围。请确认数值。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "把书房射灯亮度调到50%",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 64.25837499999943,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.5302799691052573,
+          "margin": 0.06055993821051464,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯"
+            ]
+          },
+          "providerWinnerId": "clarify",
+          "message": "书房射灯没有已确认的对应数值调节能力，我先不操作。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "书房空调24度，客厅窗帘30%",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [],
+          "elapsedMs": 74.3648749999993,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.9346078149601172,
+          "margin": 0.8692156299202345,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study",
+              "living"
+            ],
+            "targetIds": [
+              "study_ac",
+              "living_curtain"
+            ]
+          },
+          "providerWinnerId": "clarify",
+          "message": "这条指令包含多个设置值，请逐个设备说明，避免把数值对应错。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "餐厅射灯打开",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "餐厅射灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "餐厅射灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 98.12433400000009,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"asset_dining_餐厅射灯\",\"power\",true]]",
+          "probability": 0.9570733894056694,
+          "margin": 0.9366535670524017,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "dining"
+            ],
+            "targetIds": [
+              "asset_dining_餐厅射灯"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"asset_dining_餐厅射灯\",\"power\",true]]",
+          "message": "打开餐厅射灯",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "书房空调调到24度",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房空调",
+              24
+            ]
+          ],
+          "expected": [
+            [
+              "书房空调",
+              24
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 73.11170799999854,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"study_ac\",\"study_temperature\",24]]",
+          "probability": 0.9548241285049551,
+          "margin": 0.933015168626655,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "study_ac"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"study_ac\",\"study_temperature\",24]]",
+          "message": "设置书房空调为24",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "客厅窗帘调到30%",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "客厅窗帘",
+              30
+            ]
+          ],
+          "expected": [
+            [
+              "客厅窗帘",
+              30
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [],
+          "elapsedMs": 83.10741700000108,
+          "correctCandidatePresent": true,
+          "selectedId": "actions:[[\"living_curtain\",\"curtain_position\",30]]",
+          "probability": 0.9169244071597588,
+          "margin": 0.8802098475821536,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "living"
+            ],
+            "targetIds": [
+              "living_curtain"
+            ]
+          },
+          "providerWinnerId": "actions:[[\"living_curtain\",\"curtain_position\",30]]",
+          "message": "设置客厅窗帘为30",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "还是太暗了",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [
+            [
+              "书房吊灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 125.43766599999981,
+          "correctCandidatePresent": true,
+          "selectedId": "clarify",
+          "probability": 0.6373508863874142,
+          "margin": 0.4380160702984701,
+          "scope": {
+            "source": "conversation_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "goal:brighter:asset_study_书房吊灯",
+          "proposal": {
+            "label": "增加房间照明：补开书房吊灯，其余设备保持不变",
+            "actions": [
+              {
+                "device_id": "asset_study_书房吊灯",
+                "capability": "power",
+                "value": true,
+                "reason": "增加房间照明：补开书房吊灯，其余设备保持不变"
+              }
+            ],
+            "scope": {
+              "source": "conversation_room",
+              "roomIds": [
+                "study"
+              ],
+              "targetIds": [
+                "asset_study_书房射灯",
+                "asset_study_书房吊灯"
+              ]
+            },
+            "goal": {
+              "domain": "lighting",
+              "desired_outcome": "brighter",
+              "space_refs": [
+                "study"
+              ],
+              "evidence": "device_state_only"
+            }
+          },
+          "message": "要我补开书房吊灯吗？",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "客厅再亮一点",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "客厅灯",
+              60
+            ]
+          ],
+          "expected": [
+            [
+              "客厅灯",
+              60
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开客厅灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 102.6734579999993,
+          "correctCandidatePresent": true,
+          "selectedId": "goal:brighter:living_light",
+          "probability": 0.9595258014462751,
+          "margin": 0.9436790338518004,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "living"
+            ],
+            "targetIds": [
+              "living_light"
+            ]
+          },
+          "providerWinnerId": "goal:brighter:living_light",
+          "message": "已将客厅灯亮度调到60%。现在够亮了吗？",
+          "goalProgress": {
+            "domain": "lighting",
+            "roomId": "living",
+            "desiredOutcome": "brighter",
+            "status": "awaiting_user_feedback",
+            "evidence": "device_readback_only",
+            "commandId": "test",
+            "updatedAt": 100000
+          },
+          "simulatedEffects": 2
+        },
+        {
+          "input": "客厅太亮了",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "客厅灯",
+              20
+            ]
+          ],
+          "expected": [
+            [
+              "客厅灯",
+              20
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开客厅灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 114.00345899999957,
+          "correctCandidatePresent": true,
+          "selectedId": "goal:dimmer:living_light",
+          "probability": 0.6975863716139695,
+          "margin": 0.5843343057184376,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "living"
+            ],
+            "targetIds": [
+              "living_light"
+            ]
+          },
+          "providerWinnerId": "goal:dimmer:living_light",
+          "message": "已将客厅灯亮度调到20%。现在亮度合适吗？",
+          "goalProgress": {
+            "domain": "lighting",
+            "roomId": "living",
+            "desiredOutcome": "dimmer",
+            "status": "awaiting_user_feedback",
+            "evidence": "device_readback_only",
+            "commandId": "test",
+            "updatedAt": 100000
+          },
+          "simulatedEffects": 2
+        },
+        {
+          "input": "书房还是太暗",
+          "pass": true,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "needs_clarification",
+          "setup": [
+            {
+              "input": "打开书房所有灯",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 116.5689999999995,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.26834359974950867,
+          "margin": 0.06431046921831765,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房射灯",
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "goal_limit:brighter",
+          "message": "我还不能确定你要控制、查询还是调整，请补充一下。",
+          "simulatedEffects": 2
+        },
+        {
+          "input": "这样好多了",
+          "pass": false,
+          "status": "needs_clarification",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            },
+            {
+              "input": "还是太暗了",
+              "status": "needs_clarification"
+            }
+          ],
+          "elapsedMs": 107.96966700000121,
+          "correctCandidatePresent": null,
+          "selectedId": "clarify",
+          "probability": 0.5739870892662462,
+          "margin": 0.2984387426262927,
+          "scope": {
+            "source": "conversation_room",
+            "roomIds": [],
+            "targetIds": []
+          },
+          "providerWinnerId": "goal_feedback_improved",
+          "message": "我还不能确定你要控制、查询还是调整，请补充一下。",
+          "simulatedEffects": 1
+        },
+        {
+          "input": "取消",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [],
+          "elapsedMs": 59.44487499999923,
+          "correctCandidatePresent": null,
+          "selectedId": "no_action",
+          "probability": 0.9704439883094448,
+          "margin": 0.9408879766188897,
+          "scope": {
+            "source": "unspecified",
+            "roomIds": [],
+            "targetIds": []
+          },
+          "providerWinnerId": "no_action",
+          "message": "没有操作设备。",
+          "simulatedEffects": 0
+        },
+        {
+          "input": "可以",
+          "pass": true,
+          "status": "executed",
+          "actual": [
+            [
+              "书房吊灯",
+              true
+            ]
+          ],
+          "expected": [
+            [
+              "书房吊灯",
+              true
+            ]
+          ],
+          "expectedStatus": "executed",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            },
+            {
+              "input": "还是太暗了",
+              "status": "needs_clarification"
+            }
+          ],
+          "elapsedMs": 126.25670799999898,
+          "correctCandidatePresent": true,
+          "selectedId": "goal:brighter:asset_study_书房吊灯",
+          "probability": 0.9553887036662717,
+          "margin": 0.9448289648512046,
+          "scope": {
+            "source": "explicit_room",
+            "roomIds": [
+              "study"
+            ],
+            "targetIds": [
+              "asset_study_书房吊灯"
+            ]
+          },
+          "providerWinnerId": "goal:brighter:asset_study_书房吊灯",
+          "message": "已补开书房吊灯。现在够亮了吗？",
+          "goalProgress": {
+            "domain": "lighting",
+            "roomId": "study",
+            "desiredOutcome": "brighter",
+            "status": "awaiting_user_feedback",
+            "evidence": "device_readback_only",
+            "commandId": "test",
+            "updatedAt": 100000
+          },
+          "simulatedEffects": 2
+        },
+        {
+          "input": "好多了",
+          "pass": true,
+          "status": "answered",
+          "actual": [],
+          "expected": [],
+          "expectedStatus": "answered",
+          "setup": [
+            {
+              "input": "打开书房射灯",
+              "status": "executed"
+            },
+            {
+              "input": "还是太暗了",
+              "status": "needs_clarification"
+            },
+            {
+              "input": "可以",
+              "status": "executed"
+            }
+          ],
+          "elapsedMs": 92.37641600000097,
+          "correctCandidatePresent": null,
+          "selectedId": "goal_feedback_improved",
+          "probability": 0.6674938339250881,
+          "margin": 0.42297297763593433,
+          "scope": {
+            "source": "conversation_room",
+            "roomIds": [],
+            "targetIds": []
+          },
+          "providerWinnerId": "goal_feedback_improved",
+          "message": "好，有改善。还需要调整吗？",
+          "goalProgress": {
+            "domain": "lighting",
+            "roomId": "study",
+            "desiredOutcome": "brighter",
+            "status": "improved_by_user",
+            "evidence": "explicit_user_feedback",
+            "commandId": "setup-2",
+            "updatedAt": 100000,
+            "userAssessment": "improved"
+          },
+          "simulatedEffects": 2
+        }
+      ]
+    }
+  }
+}

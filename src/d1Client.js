@@ -11,12 +11,12 @@ export function createD1Client({
 
   return {
     model,
-    async choose({ state, candidates, purposeCandidates, signal }) {
+    async choose({ state, candidates, purposeCandidates, instructions, signal }) {
       signal?.throwIfAborted();
       if (busy) throw new Error("D1 正在处理另一条指令，请稍后重试。设备没有执行。");
       if (candidates.length < 2 || candidates.length > 16) throw new Error("D1 candidate budget exceeded");
       if (state.length > 4000) throw new Error("D1 context budget exceeded");
-      const criteria = Object.fromEntries(candidates.map((candidate, index) => [`p${index}`, candidate.label]));
+      const criteria = Object.fromEntries(candidates.map((candidate, index) => [`p${index}`, candidate.modelDescription ?? candidate.label]));
       if (Object.values(criteria).some((label) => typeof label !== "string" || label.length > 500)) {
         throw new Error("Invalid D1 candidate label");
       }
@@ -31,7 +31,7 @@ export function createD1Client({
           headers: { "Content-Type": "application/json" },
           signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
           body: JSON.stringify({ model, state, questions: {
-            plan: { type: "choice", instructions: "哪个方案符合这条用户指令？", criteria },
+            plan: { type: "choice", instructions: instructions ?? "哪个方案符合这条用户指令？", criteria },
             ...(purposeCandidates ? { purpose: {
               type: "choice", instructions: "用户是在要求立刻操作设备，还是仅在咨询信息或描述偏好？",
               criteria: Object.fromEntries(purposeCandidates.map((candidate) => [candidate.id, candidate.label])),
