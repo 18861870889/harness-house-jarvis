@@ -27,7 +27,7 @@ function validateRecording(recording, blueprint, baselineId) {
   });
 }
 
-export async function createSandboxService({ client, now = Date.now, initialHome = createSandboxHome(), blueprint = HOUSE_BLUEPRINT, baselineId = createHash("sha256").update(JSON.stringify(initialHome)).digest("hex") } = {}) {
+export async function createSandboxService({ client, now = Date.now, decisionVersion = "v2", initialHome = createSandboxHome(), blueprint = HOUSE_BLUEPRINT, baselineId = createHash("sha256").update(JSON.stringify(initialHome)).digest("hex") } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "house-sandbox-"));
   let runtime;
   const baseline = structuredClone(initialHome);
@@ -39,12 +39,12 @@ export async function createSandboxService({ client, now = Date.now, initialHome
   const events = [];
   let truncated = false;
   try {
-    runtime = await createPiRuntime({ directory, client, initialHome: home, now, terminalRooms: Object.fromEntries([...blueprint.rooms.map(r => [`sandbox-${r.id}`, r.id]), ["sandbox-doorway", null]]) });
+    runtime = await createPiRuntime({ directory, client, initialHome: home, now, decisionVersion, terminalRooms: Object.fromEntries([...blueprint.rooms.map(r => [`sandbox-${r.id}`, r.id]), ["sandbox-doorway", null]]) });
   } catch (error) { rmSync(directory, { recursive: true, force: true }); throw error; }
   const service = {
     runtime,
-    snapshot: () => structuredClone({ mode: "simulation-only", decisionVersion: "v2", blueprintVersion: blueprint.version, blueprint, baselineId, home, capturedAt, busy, effects: runtime.kernel.writes }),
-    recording: () => structuredClone({ version: blueprint.kind === "ha-replica" ? 2 : 1, blueprintVersion: blueprint.version, baselineId, simulated: true, truncated, events }),
+    snapshot: () => structuredClone({ mode: "simulation-only", decisionVersion, blueprintVersion: blueprint.version, blueprint, baselineId, home, capturedAt, busy, effects: runtime.kernel.writes }),
+    recording: () => structuredClone({ version: blueprint.kind === "ha-replica" ? 2 : 1, decisionVersion, blueprintVersion: blueprint.version, baselineId, simulated: true, truncated, events }),
     async command(raw, { signal } = {}) {
       if (closed) throw new Error("sandbox_closed");
       if (busy) throw new Error("runtime_busy");
@@ -79,18 +79,24 @@ export async function createSandboxService({ client, now = Date.now, initialHome
       busy = true;
       let isolated;
       try {
-        isolated = await createSandboxService({ client, now, initialHome: baseline, blueprint, baselineId });
+        isolated = await createSandboxService({ client, now, decisionVersion, initialHome: baseline, blueprint, baselineId });
         const mapping = new Map();
         const sessions = new Map();
+        const pending = new Map();
         const results = [];
         for (const [index, request] of requests.entries()) {
           signal?.throwIfAborted();
           const id = `replay-${index}`;
-          const resumeFor = request.resumeFor ? mapping.get(request.resumeFor) : undefined;
-          if (request.resumeFor && !resumeFor) throw new Error("incomplete_recording");
+          const mappedResume = request.resumeFor ? mapping.get(request.resumeFor) : undefined;
+          if (request.resumeFor && !mappedResume) throw new Error("incomplete_recording");
+          // A newer model may answer an old question without asking. Never
+          // attach the old reply to a different or already completed proposal.
+          const resumeFor = decisionVersion === "v3" && pending.get(request.sessionId) !== mappedResume ? undefined : mappedResume;
           mapping.set(request.commandId, id);
           if (!sessions.has(request.sessionId)) sessions.set(request.sessionId, `replay-session-${sessions.size}`);
-          const { result } = await isolated.command({ ...request, commandId: id, sessionId: sessions.get(request.sessionId), source: "replay", ...(resumeFor ? { resumeFor } : {}) }, { signal });
+          const { resumeFor: _oldResume, ...raw } = request;
+          const { result } = await isolated.command({ ...raw, commandId: id, sessionId: sessions.get(request.sessionId), source: "replay", ...(resumeFor ? { resumeFor } : {}) }, { signal });
+          if (result.status === "needs_clarification") pending.set(request.sessionId, id); else pending.delete(request.sessionId);
           results.push({ input: request.input, pose: request.pose, result, snapshot: isolated.snapshot(), matches: signature(result) === signature(recording.events[index].result ?? {}) });
           if (["failed", "execution_unknown", "cancelled"].includes(result.status)) break;
         }

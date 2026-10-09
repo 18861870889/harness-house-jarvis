@@ -27,7 +27,9 @@ const probe = async () => {
 if (process.argv.includes("--background")) {
   if (await probe()) { console.log(`Sandbox already running: http://localhost:${port}/`); process.exit(0); }
   mkdirSync("build/house-sandbox", { recursive: true });
-  const log = openSync("build/house-sandbox/server.log", "a");
+  const stem = port === 5184 ? "server" : `server-${port}`;
+  const logPath = `build/house-sandbox/${stem}.log`;
+  const log = openSync(logPath, "a");
   const child = spawn(process.execPath, [resolve("scripts/start-house-sandbox.mjs")], { cwd: process.cwd(), detached: true, stdio: ["ignore", log, log] });
   closeSync(log);
   let exited = false;
@@ -40,9 +42,9 @@ if (process.argv.includes("--background")) {
       if (await probe()) { healthy = true; break; }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    if (!healthy) throw new Error("sandbox_start_failed: see build/house-sandbox/server.log");
-    writeFileSync("build/house-sandbox/server.pid", `${child.pid}\n`);
-    console.log(`Sandbox process ${child.pid}; http://localhost:${port}/; log: build/house-sandbox/server.log`);
+    if (!healthy) throw new Error(`sandbox_start_failed: see ${logPath}`);
+    writeFileSync(`build/house-sandbox/${stem}.pid`, `${child.pid}\n`);
+    console.log(`Sandbox process ${child.pid}; http://localhost:${port}/; log: ${logPath}`);
   } catch (error) { if (!exited) child.kill("SIGTERM"); throw error; }
 } else {
   const client = createD1Client({ endpoint: process.env.D1_ENDPOINT ?? "http://192.168.1.154:8080/v1/systemone", timeoutMs: 5000 });
@@ -51,7 +53,7 @@ if (process.argv.includes("--background")) {
   const source = config ? await createHaHouseSource({ ...config, cachePath: resolve("build/house-sandbox/ha-home.local.json") }) : null;
   const newService = () => {
     const house = source?.house() ?? (fixture ? prepareHaHouse(fixture.home, {}, fixture.state) : null);
-    return createSandboxService({ client, ...(house ? { initialHome: house.home, blueprint: house.blueprint, baselineId: house.baselineId } : {}) });
+    return createSandboxService({ client, decisionVersion: process.env.SANDBOX_DECISION_VERSION ?? "v3", ...(house ? { initialHome: house.home, blueprint: house.blueprint, baselineId: house.baselineId } : {}) });
   };
   let service = await newService();
   const present = snapshot => ({ ...snapshot, source: source ? { ...source.status(), copyCapturedAt: snapshot.home.syncedAt, updateAvailable: source.status().latestBaselineId !== snapshot.baselineId }

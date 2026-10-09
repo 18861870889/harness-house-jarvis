@@ -1,8 +1,19 @@
 # Current Status
 
-> Last updated: 2026-06-22. This document is the short source of truth for current progress, near-term plans, and safety boundaries.
+> Branch sandbox update: 2026-10-09. Main application milestones below remain the 2026-06-22 snapshot; they are not a new release claim.
 
-## Current Version
+## D1 Sandbox Branch
+
+- Independent HA-backed house sandbox: 12 drawn regions, 45 physical devices, 43 logical assets and 61 scene points in the current local cache.
+- Default decision contract is semantic v3: native D1 fields, grounded catalogue retrieval, constrained action compilation, HCM simulation, memory-only execution and readback. No cloud LLM fallback or real HA writes.
+- The 18-turn user sequence plus warmup, 29 extended scenarios and 5 follow-up sequences pass: 53/53 local-D1 regression groups. Full unit/integration suite: 530 passed, 3 online tests skipped.
+- Speaker-room provenance, exact quantities, exclusions, read-only queries, pending confirmation, explicit restoration proposals, restart deduplication and isolated replay are covered.
+- Existing Pi/LangGraph comparisons and `demo:d1` remain on their historical decision paths. The original project directory and its local configuration were not modified.
+- HA is currently unreachable; the displayed real reference is the 2026-06-27 cache, not live device truth. The sandbox remains Alpha, not a real-device release.
+
+See [house sandbox](HOME_SANDBOX_ALPHA.md) and [semantic v3 contract and limitations](D1_SEMANTIC_CONTRACT_V3.md).
+
+## Main Application Snapshot
 
 Current engineering progress: `v0.24`.
 

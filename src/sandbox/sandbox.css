@@ -119,8 +119,8 @@ h1, h2, h3, p { margin: 0; }
 .device-details > div { display: flex; justify-content: space-between; gap: 10px; }
 .decision-details { padding: 14px 18px 20px; color: #809384; font-size: 10px; }
 .decision-details summary { cursor: pointer; }
-.decision-details dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 0; }
-.decision-details dd { margin: 0; text-align: right; color: #496754; }
+.decision-details dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin: 12px 0 0; }
+.decision-details dd { margin: 0; min-width: 0; overflow-wrap: anywhere; text-align: right; color: #496754; }
 .trace-panel { min-height: 260px; flex: 1; padding: 17px 18px; overflow-y: auto; }
 .trace-tools { display: flex; align-items: center; gap: 5px; margin-bottom: 17px; }
 .tool-command { display: flex; align-items: center; gap: 6px; border: 1px solid #d7e4dc; background: #fff; border-radius: 5px; padding: 7px 10px; font-size: 11px; margin-right: auto; }

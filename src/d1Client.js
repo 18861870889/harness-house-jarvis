@@ -9,8 +9,46 @@ export function createD1Client({
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("Invalid D1 timeout");
   let busy = false;
 
+  async function classify({ state, questions, signal }) {
+    signal?.throwIfAborted();
+    if (busy) throw new Error("D1 正在处理另一条指令，请稍后重试。设备没有执行。");
+    const entries = Object.entries(questions ?? {});
+    if (typeof state !== "string" || state.length > 6000 || !entries.length || entries.length > 32) throw new Error("D1 context budget exceeded");
+    for (const [id, question] of entries) {
+      const criteria = Object.entries(question?.criteria ?? {});
+      if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(id) || question.type !== "choice" || criteria.length < 2 || criteria.length > 16
+        || typeof question.instructions !== "string" || question.instructions.length > 600
+        || criteria.some(([key, label]) => !/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(key) || typeof label !== "string" || label.length > 500)) throw new Error("Invalid D1 question");
+    }
+    if (state.length + JSON.stringify(questions).length > 14000) throw new Error("D1 context budget exceeded");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = Date.now();
+    busy = true;
+    try {
+      const response = await fetchImpl(url.href, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
+        body: JSON.stringify({ model, state, questions }),
+      });
+      if (!response.ok) throw new Error(`D1 HTTP ${response.status}`);
+      const data = await response.json();
+      if (Object.keys(data.answers ?? {}).length !== entries.length) throw new Error("D1 returned an invalid decision distribution");
+      const answers = Object.fromEntries(entries.map(([id, question]) => [id, {
+        ...validateDistribution(data.answers?.[id], Object.keys(question.criteria)),
+        choice: data.answers[id].choice, providerConfidence: data.answers[id].confidence,
+      }]));
+      return { answers, latencyMs: Date.now() - startedAt, usage: data.usage };
+    } catch (error) {
+      if (signal?.aborted) throw new Error("D1 请求已取消，设备没有执行。");
+      if (controller.signal.aborted) throw new Error("D1 响应超时，设备没有执行。请重试。");
+      throw error;
+    } finally { clearTimeout(timer); busy = false; }
+  }
+
   return {
     model,
+    classify,
     async choose({ state, candidates, purposeCandidates, instructions, signal }) {
       signal?.throwIfAborted();
       if (busy) throw new Error("D1 正在处理另一条指令，请稍后重试。设备没有执行。");

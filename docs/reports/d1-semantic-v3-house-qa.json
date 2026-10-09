@@ -1,0 +1,69 @@
+{
+  "verifiedDate": "2026-10-09",
+  "runAt": "2026-10-09T13:45:04.418Z",
+  "suite": "d1-semantic-v3-house",
+  "stage": "alpha-simulation-only",
+  "decisionVersion": "v3",
+  "contractVersion": "3.0",
+  "model": "d1-3b-q4",
+  "source": "existing-local-house-cache",
+  "nativeD1Regression": {
+    "passedGroups": 53,
+    "failedGroups": 0,
+    "userSequenceIncludingWarmup": 19,
+    "extendedSingleScenarios": 29,
+    "followupSequences": 5,
+    "assertions": [
+      "logical targets and exact physical control endpoints",
+      "action direction, count and unchanged other-room devices",
+      "final-state constraints and unknown-state rejection",
+      "read-only queries and negative-command clarification",
+      "room context, pending proposal revision and precise confirmation"
+    ],
+    "timing": {
+      "unit": "scenario-group wall-clock milliseconds",
+      "medianMs": 138,
+      "p95Ms": 630,
+      "sequenceGroupsContainMultipleTurns": true,
+      "isPerTurnModelOrUiLatency": false,
+      "isSla": false
+    },
+    "isIndependentBlindAccuracyEvaluation": false
+  },
+  "unitAndIntegration": {
+    "passed": 530,
+    "skipped": 3,
+    "skippedReason": "online tests are opt-in"
+  },
+  "browserRegression": {
+    "capturedHouseGroupsPassed": 11,
+    "syntheticHouseGroupsPassed": 11,
+    "viewports": [
+      { "width": 1440, "height": 1000 },
+      { "width": 768, "height": 1024 },
+      { "width": 390, "height": 844 }
+    ],
+    "nonblankCanvasAndCompleteHouseFraming": true,
+    "roomWalkingAndInputCanvasStability": true,
+    "exactStudyGangAndReadOnlySensors": true,
+    "isolatedReplayAndPrivateFileBoundary": true
+  },
+  "isolation": {
+    "realDeviceWrites": 0,
+    "cloudModelCalls": 0,
+    "nativeRegressionReadsEnvFile": false,
+    "nativeRegressionConnectsToHa": false,
+    "originalHouseFilesModified": false,
+    "haOnlineConnectionVerified": false,
+    "referenceSnapshotDate": "2026-06-27"
+  },
+  "knownLimits": [
+    "No live HA or real-device release validation.",
+    "Counts beyond one require clarification; complex slots and action-only device skills remain incomplete.",
+    "Default lamp selection is deterministic, not learned personal preference.",
+    "Model scores are not calibrated accuracy and there is no hard whole-turn 2-second SLA.",
+    "No measured room comfort, real resident localization or microphone hardware validation.",
+    "Main application migration, persistence and production authentication remain incomplete."
+  ],
+  "privacy": "Aggregate only; private inputs, floorplans, entity IDs, credentials and complete traces remain in ignored local build files."
+}

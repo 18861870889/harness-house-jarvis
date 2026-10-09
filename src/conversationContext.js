@@ -96,6 +96,9 @@ export function isComfortFollowUpInput(input) {
 
 function targetsFromPlan(plan) {
   const targets = [];
+  for (const target of plan.contextFocus?.targets ?? []) {
+    if (target?.id) targets.push({ id: target.id, name: target.name, roomId: target.roomId });
+  }
   if (plan.stateQuery?.thingId) {
     targets.push({ id: plan.stateQuery.thingId, name: plan.stateQuery.thingName, roomId: plan.stateQuery.roomId });
   }

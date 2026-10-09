@@ -2,10 +2,12 @@
   "verifiedDate": "2026-10-09",
   "suite": "ha-backed-house-sandbox",
   "stage": "alpha-read-only-directory-and-simulation",
-  "unit": { "passed": 460, "skipped": 3 },
+  "decisionVersion": "v3",
+  "semanticContractVersion": "3.0",
+  "unit": { "passed": 530, "skipped": 3 },
   "build": { "passed": true, "chunkSizeWarning": true },
   "capturedHouse": {
-    "runAt": "2026-10-09T10:55:57.168Z",
+    "runAt": "2026-10-09T13:55:33.041Z",
     "passed": true,
     "caseGroups": 11,
     "rooms": 12,
@@ -13,11 +15,11 @@
     "logicalAssets": 43,
     "sceneDevices": 61,
     "rapierRoomRoutesPassed": 12,
-    "d1SpotlightLatencyMs": 1216,
+    "d1SpotlightLatencyMs": 424,
     "exactGangReadbackVerified": true
   },
   "syntheticHouse": {
-    "runAt": "2026-10-09T10:57:37.909Z",
+    "runAt": "2026-10-09T13:58:49.328Z",
     "passed": true,
     "caseGroups": 11,
     "rooms": 8,
@@ -27,6 +29,7 @@
     "rapierRoomRoutesPassed": 8
   },
   "sampleAndVoiceRegression": {
+    "historicalV2RunNotCurrentV3Acceptance": true,
     "runAt": "2026-10-09T10:40:57.942Z",
     "passed": true,
     "caseGroups": 16,
@@ -44,8 +47,7 @@
     "actualLampMaterialChecked": true,
     "typingPreservesCanvas": true,
     "inspectionRoomDoesNotChangeSpeakerRoom": true,
-    "fullHouseViewRestoresAfterDeviceFocus": true,
-    "finalUserChromeDemoElapsedMs": 185
+    "fullHouseViewRestoresAfterDeviceFocus": true
   },
   "isolation": {
     "realDeviceWrites": 0,
@@ -72,7 +74,8 @@
     "No real HA controls are exposed by this sandbox.",
     "Sensor movement, errors and multi-resident simulation are not implemented.",
     "Browser STT is not an offline speech guarantee; microphone hardware was not tested.",
-    "Historical strict D1 semantic coverage is 34/36 and was not rerun this round.",
+    "The separate v3 native D1 regression passed 53/53 iterated groups, not a blind general-accuracy evaluation.",
+    "Complex counts, clarification slots and media/feeding action skills are not fully implemented.",
     "Production authentication, dependency audit and release gate remain incomplete."
   ],
   "privacy": "Aggregate report only; private floorplan, states, entities, poses, tokens and full traces stay local."

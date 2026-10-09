@@ -97,7 +97,11 @@ try {
     const endpoint = result.snapshot.home.controlGraph.endpoints.find(e => e.id === asset.primaryEndpointId);
     const cap = result.snapshot.home.things.find(t => t.id === endpoint.providerThingId).capabilities.find(c => c.id === endpoint.capabilityId); assert.equal(cap.state, true);
     await page.waitForFunction(id => window.__sandboxScene.stats().visual.lamps[id] === 2, asset.id);
-    assert(result.result.simulated); return { status: result.result.status, latencyMs: result.result.d1?.latencyMs, actions: result.result.actions.length, logicalReadback: true };
+    assert(result.result.simulated); assert.equal(result.result.d1.contractVersion, "3.0");
+    await page.getByText("本轮决策记录", { exact: true }).click();
+    const decision = await page.locator(".decision-details").innerText();
+    assert(decision.includes("v3.0") && decision.includes("设备名称") && decision.includes("书房射灯"));
+    return { status: result.result.status, latencyMs: result.result.d1?.latencyMs, actions: result.result.actions.length, logicalReadback: true, semanticContract: "3.0" };
   });
   await check("sensor query has no device effects", async () => {
     const before = (await get("state")).snapshot;

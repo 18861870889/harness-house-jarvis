@@ -163,3 +163,34 @@ describe("captured HA baseline replay", () => {
     }, { initialHome: house.home, blueprint: house.blueprint, baselineId: house.baselineId });
   });
 });
+
+describe("v3 replay across a changed clarification flow", () => {
+  const score = choice => ({ choice, probability: 0.99, margin: 0.98 });
+  const client = () => ({ classify: vi.fn(async ({ state, questions }) => ({ answers: Object.fromEntries(Object.keys(questions).map(id => [id, score({ task: state.includes('本轮用户原话："可以"') ? "confirm" : "power_on", extent: "matching", feedback: "none", target_form: "named" }[id])])), latencyMs: 1 })) });
+
+  it("does not retain a stale old-model question binding for a new command", async () => {
+    const service = await createSandboxService({ client: client(), decisionVersion: "v3" });
+    try {
+      await service.command(request("one", "开射灯"));
+      await service.command(request("two", "开吊灯"));
+      const recording = service.recording(); recording.events[1].request.resumeFor = "one";
+      const before = service.snapshot();
+      const replay = await service.replay(recording);
+      expect(replay.results.every(r => r.matches)).toBe(true);
+      expect(service.snapshot()).toEqual(before);
+    } finally { await service.close(); }
+  });
+
+  it("an old confirmation without a current proposal does not repeat an action", async () => {
+    const service = await createSandboxService({ client: client(), decisionVersion: "v3" });
+    try {
+      await service.command(request("one", "开射灯"));
+      await service.command(request("two", "可以"));
+      const recording = service.recording(); recording.events[1].request.resumeFor = "one";
+      const replay = await service.replay(recording);
+      expect(replay.results[1].result.status).toBe("needs_clarification");
+      expect(replay.results[1].result.actions).toEqual([]);
+      expect(replay.results[1].snapshot.effects).toBe(1);
+    } finally { await service.close(); }
+  });
+});

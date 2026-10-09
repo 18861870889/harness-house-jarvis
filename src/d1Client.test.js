@@ -6,6 +6,63 @@ const response = (answer) => ({ ok: true, json: async () => ({ answers: { plan: 
 const good = { type: "choice", choice: "p0", probabilities: { p0: 0.9, p1: 0.1 }, confidence: 0.8 };
 
 describe("native D1 client", () => {
+  const semanticQuestions = { task: { type: "choice", instructions: "意图", criteria: { on: "打开", off: "关闭" } } };
+
+  it("semantic and legacy inference share one bounded slot", async () => {
+    let finish;
+    const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl: () => new Promise(resolve => { finish = resolve; }) });
+    const first = client.classify({ state: "test", questions: semanticQuestions });
+    await expect(client.choose({ state: "second", candidates })).rejects.toThrow("另一条");
+    finish({ ok: true, json: async () => ({ answers: { task: { type: "choice", choice: "on", probabilities: { on: 0.9, off: 0.1 } } } }) });
+    await first;
+  });
+
+  it("semantic cancellation and timeout release the slot without retries", async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn((_url, { signal }) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })));
+    const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", timeoutMs: 10, fetchImpl });
+    const first = client.classify({ state: "test", questions: semanticQuestions, signal: controller.signal });
+    controller.abort(); await expect(first).rejects.toThrow("取消");
+    await expect(client.classify({ state: "test", questions: semanticQuestions })).rejects.toThrow("超时");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds semantic question counts, criteria and payloads before transport", async () => {
+    const fetchImpl = vi.fn(); const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl });
+    await expect(client.classify({ state: "x".repeat(6001), questions: semanticQuestions })).rejects.toThrow("budget");
+    await expect(client.classify({ state: "test", questions: Object.fromEntries(Array.from({ length: 33 }, (_, i) => [`q${i}`, semanticQuestions.task])) })).rejects.toThrow("budget");
+    await expect(client.classify({ state: "test", questions: { q: { ...semanticQuestions.task, criteria: Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`p${i}`, "label"])) } } })).rejects.toThrow("Invalid");
+    await expect(client.classify({ state: "test", questions: { q: { ...semanticQuestions.task, criteria: { on: "x".repeat(501), off: "关闭" } } } })).rejects.toThrow("Invalid");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("semantic HTTP errors fail closed without another provider", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 503 }));
+    const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl });
+    await expect(client.classify({ state: "test", questions: semanticQuestions })).rejects.toThrow("503");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("batches typed semantic fields in one native call", async () => {
+    const questions = { task: { type: "choice", instructions: "意图", criteria: { on: "打开", off: "关闭" } }, extent: { type: "choice", instructions: "数量", criteria: { one: "一个", all: "全部" } } };
+    const answer = (choice, other) => ({ type: "choice", choice, probabilities: { [choice]: 0.9, [other]: 0.1 } });
+    const fetchImpl = vi.fn(async () => ({ ok: true, json: async () => ({ answers: { task: answer("on", "off"), extent: answer("one", "all") } }) }));
+    const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl });
+    const result = await client.classify({ state: "开一个灯", questions });
+    expect(result.answers.task.choice).toBe("on");
+    expect(result.answers.extent.choice).toBe("one");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).questions).toEqual(questions);
+  });
+
+  it("rejects incomplete semantic fields and extra answers", async () => {
+    const questions = { task: { type: "choice", instructions: "意图", criteria: { on: "打开", off: "关闭" } } };
+    for (const answers of [{}, { task: { type: "choice", choice: "on", probabilities: { on: 0.9, off: 0.1 } }, extra: good }]) {
+      const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl: async () => ({ ok: true, json: async () => ({ answers }) }) });
+      await expect(client.classify({ state: "开灯", questions })).rejects.toThrow("invalid decision");
+    }
+  });
+
   it("uses systemone choice protocol without API key or chat-completions", async () => {
     const fetchImpl = vi.fn(async () => response(good));
     const client = createD1Client({ endpoint: "http://d1.invalid/v1/systemone", fetchImpl });
