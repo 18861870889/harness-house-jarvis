@@ -75,6 +75,7 @@ const send = async (input) => {
 };
 try {
   await check("API isolation and validation", async () => {
+    assert.notEqual((await state()).blueprint.kind, "ha-replica", "This legacy suite requires SANDBOX_SAMPLE=1; use test:sandbox:ha for an HA-backed house.");
     assert.equal((await context.request.post(`${base}/api/hcm/command`, { data: { input: "开灯" } })).status(), 404);
     assert.equal((await context.request.post(`${base}/api/sandbox/reset`, { headers: { Origin: "https://other.example" }, data: {} })).status(), 403);
     assert.equal((await context.request.post(`${base}/api/sandbox/command`, { data: { commandId: "invalid-pose", sessionId: "qa", input: "开灯", source: "text", pose: { x: 100, z: 0 } } })).status(), 400);

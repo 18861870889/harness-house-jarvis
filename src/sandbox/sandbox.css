@@ -16,6 +16,23 @@ h1, h2, h3, p { margin: 0; }
 .simulation-badge { display: flex; align-items: center; gap: 7px; color: var(--accent); }
 .simulation-badge > span, .green-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #16856f; flex-shrink: 0; }
 .model-badge { display: flex; align-items: center; gap: 6px; color: #637970; }
+.ha-badge { font-size: 11px; color: #9f6a35; white-space: nowrap; }
+.ha-badge.live { color: var(--accent); }
+.sandbox-source { padding: 10px 18px 14px; border-bottom: 1px solid var(--line); background: #f6faf8; display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: #667e73; }
+.source-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.source-heading strong { font-weight: 600; font-size: 12px; color: #405f51; }
+.sandbox-source small { font-size: 10px; color: #937447; }
+.source-update { display: flex; align-items: center; gap: 7px; width: fit-content; background: #fff; border: 1px solid #c8ded3; border-radius: 4px; padding: 6px 9px; font-size: 11px; color: var(--accent); }
+.device-scope { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.device-scope select { flex: 1; min-width: 0; border: 1px solid #d7e4dc; border-radius: 4px; font: inherit; font-size: 11px; color: #526f61; padding: 7px; background: #fff; }
+.sandbox-devices { max-height: 260px; overflow-y: auto; }
+.device-details > div > span { min-width: 0; overflow-wrap: anywhere; }
+.device-details > div > span:last-child { flex-shrink: 0; max-width: 45%; text-align: right; }
+.reference-value { color: #a17d4d; }
+.capability-list { max-height: 200px; overflow: auto; margin-top: 9px; }
+.capability-list > div { display: flex; justify-content: space-between; gap: 9px; padding: 5px 0; overflow-wrap: anywhere; }
+.capability-list > div > span:last-child { white-space: nowrap; }
+.device-details > span { overflow-wrap: anywhere; line-height: 1.7; }
 .icon-button { width: 32px; height: 32px; display: inline-grid; place-items: center; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 0; }
 .icon-button:hover { background: #eaf3ee; color: var(--accent); }
 .icon-button.is-active { color: var(--accent); background: #e3f3ec; }

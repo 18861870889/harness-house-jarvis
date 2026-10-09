@@ -1,0 +1,4 @@
+{
+  "directory": "/absolute/path/to/your/existing/harness-house",
+  "baseUrl": "http://homeassistant.local:8123"
+}

@@ -1,5 +1,6 @@
 import { createD1DemoHome } from "../adapters/d1DemoAdapter.js";
 import { createHcmHome } from "../hcm.js";
+import { inFloor, replicaPoseIsValid } from "./replicaBlueprint.js";
 
 const box = (id, center, size) => ({ id, center, size });
 export const HOUSE_BLUEPRINT = {
@@ -32,16 +33,63 @@ export const HOUSE_BLUEPRINT = {
   ],
 };
 
-export function isValidActorPose(pose) {
+export function isValidActorPose(pose, blueprint = HOUSE_BLUEPRINT) {
   if (!pose || ![pose.x, pose.z].every(Number.isFinite)) return false;
+  if (blueprint.kind === "ha-replica") return replicaPoseIsValid(pose, blueprint);
   const r = HOUSE_BLUEPRINT.actorRadius;
   if (Math.abs(pose.x) > 5.5 - r - 0.08 || Math.abs(pose.z) > 2.8 - r - 0.08) return false;
   return !HOUSE_BLUEPRINT.colliders.some(({ center: [x, , z], size: [w, , d] }) => Math.abs(pose.x - x) < w / 2 + r - 0.015 && Math.abs(pose.z - z) < d / 2 + r - 0.015);
 }
 
-export function actorRoom(pose) {
+export function actorRoom(pose, blueprint = HOUSE_BLUEPRINT) {
+  if (blueprint?.kind === "ha-replica") {
+    if (!isValidActorPose(pose, blueprint) || blueprint.doors.some(d => Math.hypot(pose.x - d.x, pose.z - d.z) < 0.32)) return null;
+    const matches = new Set(blueprint.floors.filter(f => f.roomId && inFloor(pose, f)).map(f => f.roomId));
+    return matches.size === 1 ? [...matches][0] : null;
+  }
   if (!isValidActorPose(pose) || Math.abs(pose.x) < 0.35) return null;
   return pose.x < 0 ? "study" : "living";
+}
+
+export function findWalkingPath(start, target, blueprint = HOUSE_BLUEPRINT) {
+  if (!isValidActorPose(start, blueprint) || !isValidActorPose(target, blueprint)) return [];
+  if (blueprint.kind !== "ha-replica") return start.x * target.x < 0 ? [{ x: Math.sign(start.x) * 0.65, z: 0 }, { x: Math.sign(target.x) * 0.65, z: 0 }, target] : [target];
+  const step = 0.15, b = blueprint.bounds;
+  const cols = Math.ceil((b.maxX - b.minX) / step) + 1, rows = Math.ceil((b.maxZ - b.minZ) / step) + 1;
+  const pose = id => ({ x: b.minX + (id % cols) * step, z: b.minZ + Math.floor(id / cols) * step });
+  const valid = new Uint8Array(cols * rows);
+  let from = -1, to = -1, startDistance = Infinity, endDistance = Infinity;
+  for (let id = 0; id < valid.length; id++) if (isValidActorPose(pose(id), blueprint)) {
+    valid[id] = 1;
+    const p = pose(id), a = Math.hypot(p.x - start.x, p.z - start.z), z = Math.hypot(p.x - target.x, p.z - target.z);
+    if (a < startDistance) { from = id; startDistance = a; }
+    if (z < endDistance) { to = id; endDistance = z; }
+  }
+  if (from < 0 || to < 0 || Math.max(startDistance, endDistance) > 0.23) return [];
+  const previous = new Int32Array(valid.length).fill(-1), queue = [from];
+  previous[from] = from;
+  for (let i = 0; i < queue.length && previous[to] < 0; i++) {
+    const id = queue[i], x = id % cols, z = Math.floor(id / cols);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, nz = z + dz, next = nz * cols + nx;
+      if (nx < 0 || nx >= cols || nz < 0 || nz >= rows || !valid[next] || previous[next] >= 0) continue;
+      previous[next] = id; queue.push(next);
+    }
+  }
+  if (previous[to] < 0) return [];
+  const path = [target];
+  for (let id = to; id !== from; id = previous[id]) path.push(pose(id));
+  path.push(pose(from));
+  return path.reverse();
+}
+
+export function followWalkingPath(pose, path, maximumStep) {
+  // Early turns cut across a wall corner even when each grid waypoint is valid.
+  while (path.length && Math.hypot(path[0].x - pose.x, path[0].z - pose.z) < 0.015) path.shift();
+  if (!path.length) return { x: 0, z: 0 };
+  const dx = path[0].x - pose.x, dz = path[0].z - pose.z, distance = Math.hypot(dx, dz);
+  const step = Math.min(distance, maximumStep);
+  return { x: dx / distance * step, z: dz / distance * step };
 }
 
 export function createSandboxHome() {

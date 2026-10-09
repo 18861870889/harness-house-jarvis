@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSandboxService } from "./sandboxService.js";
+import { prepareHaHouse } from "./haHouse.js";
+import { haHouseFixture } from "./haHouse.fixture.js";
 
 const request = (commandId, input, extra = {}) => ({ commandId, sessionId: "resident", input, pose: { x: -2, z: 1 }, source: "text", ...extra });
 const model = () => ({ choose: vi.fn(async ({ candidates, state }) => ({
@@ -7,9 +9,9 @@ const model = () => ({ choose: vi.fn(async ({ candidates, state }) => ({
   probability: 0.95, margin: 0.9,
 })) });
 
-async function withService(test) {
+async function withService(test, options = {}) {
   const client = model();
-  const service = await createSandboxService({ client });
+  const service = await createSandboxService({ client, ...options });
   try { await test(service, client); } finally { await service.close(); }
 }
 
@@ -126,5 +128,38 @@ describe("simulation-only sandbox service", () => {
       expect(replay.results[0].snapshot.home.things[0].capabilities[0].binding.entityId).toBe("switch.demo_study_spot");
       expect(service.runtime.kernel.adapter.getStatus().baseUrl).toBeNull();
     });
+  });
+});
+
+describe("captured HA baseline replay", () => {
+  it("records compact v2 traces, rejects other homes and ignores imported providers", async () => {
+    const { home: raw, state } = haHouseFixture();
+    const house = prepareHaHouse(raw, {}, state);
+    await withService(async (service, client) => {
+      await service.command(request("captured-one", "打开书房射灯", { pose: house.blueprint.roomSpawns.study }));
+      const recording = service.recording();
+      expect(recording.version).toBe(2);
+      expect(recording.events[0].before).toBeUndefined();
+      expect(recording.events[0].after).toBeUndefined();
+      expect(JSON.stringify(recording).length).toBeLessThan(512 * 1024);
+      await expect(service.replay({ ...recording, baselineId: "a-different-house" })).rejects.toThrow("recording_baseline_mismatch");
+      expect(client.choose).toHaveBeenCalledTimes(1);
+      const before = service.snapshot();
+      recording.provider = { id: "real", baseUrl: "http://not-used.test" };
+      recording.events[0].after = { provider: { token: "not-used" } };
+      const replay = await service.replay(recording);
+      expect(replay.results[0].matches).toBe(true);
+      expect(replay.results[0].result.simulated).toBe(true);
+      expect(service.snapshot()).toEqual(before);
+      expect(service.runtime.kernel.adapter.getStatus().baseUrl).toBeNull();
+    }, { initialHome: house.home, blueprint: house.blueprint, baselineId: house.baselineId });
+  });
+  it("copies the baseline so later caller mutations cannot change its reset/replay world", async () => {
+    const { home: raw, state } = haHouseFixture();
+    const house = prepareHaHouse(raw, {}, state), before = structuredClone(house.home);
+    await withService(async service => {
+      house.home.things.length = 0;
+      expect(service.snapshot().home).toEqual(before);
+    }, { initialHome: house.home, blueprint: house.blueprint, baselineId: house.baselineId });
   });
 });

@@ -3,32 +3,35 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createPiRuntime } from "../experiments/harnessComparison/piRuntime.js";
 import { HOUSE_BLUEPRINT, actorRoom, isValidActorPose, createSandboxHome } from "./houseBlueprint.js";
+import { createHash } from "node:crypto";
 
 const validId = (id) => typeof id === "string" && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(id);
-function validateRequest(request) {
+function validateRequest(request, blueprint) {
   if (!validId(request?.commandId) || !validId(request?.sessionId) || typeof request.input !== "string" || !request.input.trim() || request.input.length > 500 || request.resumeFor && !validId(request.resumeFor)) throw new Error("invalid_request");
-  if (!isValidActorPose(request.pose)) throw new Error("invalid_actor_pose");
+  if (!isValidActorPose(request.pose, blueprint)) throw new Error("invalid_actor_pose");
   if (!["text", "voice", "replay"].includes(request.source)) throw new Error("invalid_source");
   return { sessionId: request.sessionId, commandId: request.commandId, input: request.input.trim(), pose: { x: request.pose.x, z: request.pose.z }, source: request.source, ...(request.resumeFor ? { resumeFor: request.resumeFor } : {}) };
 }
 const signature = (result) => JSON.stringify({ status: result.status, actions: (result.actions ?? []).map(({ logicalAssetId, thingId, capabilityId, value }) => [logicalAssetId ?? thingId, capabilityId, value]) });
-function validateRecording(recording) {
-  if (recording?.version !== 1 || recording.blueprintVersion !== HOUSE_BLUEPRINT.version || recording.simulated !== true || !Array.isArray(recording.events) || !recording.events.length || recording.events.length > 20) throw new Error("invalid_recording");
+function validateRecording(recording, blueprint, baselineId) {
+  if (recording?.version !== (blueprint.kind === "ha-replica" ? 2 : 1) || recording.blueprintVersion !== blueprint.version || recording.simulated !== true || !Array.isArray(recording.events) || !recording.events.length || recording.events.length > 20) throw new Error("invalid_recording");
+  if (blueprint.kind === "ha-replica" && recording.baselineId !== baselineId) throw new Error("recording_baseline_mismatch");
   if (recording.truncated) throw new Error("incomplete_recording");
   const seen = new Map();
   return recording.events.map((event) => {
     if (!event || typeof event.result?.status !== "string" || event.result.actions !== undefined && (!Array.isArray(event.result.actions) || event.result.actions.some((action) => !action || typeof action !== "object"))) throw new Error("invalid_recording");
-    const request = validateRequest(event.request);
+    const request = validateRequest(event.request, blueprint);
     if (seen.has(request.commandId) || request.resumeFor && seen.get(request.resumeFor) !== request.sessionId) throw new Error("incomplete_recording");
     seen.set(request.commandId, request.sessionId);
     return request;
   });
 }
 
-export async function createSandboxService({ client, now = Date.now } = {}) {
+export async function createSandboxService({ client, now = Date.now, initialHome = createSandboxHome(), blueprint = HOUSE_BLUEPRINT, baselineId = createHash("sha256").update(JSON.stringify(initialHome)).digest("hex") } = {}) {
   const directory = mkdtempSync(join(tmpdir(), "house-sandbox-"));
   let runtime;
-  let home = createSandboxHome();
+  const baseline = structuredClone(initialHome);
+  let home = structuredClone(baseline);
   let capturedAt = now();
   let busy = false;
   let closed = false;
@@ -36,22 +39,22 @@ export async function createSandboxService({ client, now = Date.now } = {}) {
   const events = [];
   let truncated = false;
   try {
-    runtime = await createPiRuntime({ directory, client, initialHome: home, now, terminalRooms: { "sandbox-study": "study", "sandbox-living": "living", "sandbox-doorway": null } });
+    runtime = await createPiRuntime({ directory, client, initialHome: home, now, terminalRooms: Object.fromEntries([...blueprint.rooms.map(r => [`sandbox-${r.id}`, r.id]), ["sandbox-doorway", null]]) });
   } catch (error) { rmSync(directory, { recursive: true, force: true }); throw error; }
   const service = {
     runtime,
-    snapshot: () => structuredClone({ mode: "simulation-only", decisionVersion: "v2", blueprintVersion: HOUSE_BLUEPRINT.version, home, capturedAt, busy, effects: runtime.kernel.writes }),
-    recording: () => structuredClone({ version: 1, blueprintVersion: HOUSE_BLUEPRINT.version, simulated: true, truncated, events }),
+    snapshot: () => structuredClone({ mode: "simulation-only", decisionVersion: "v2", blueprintVersion: blueprint.version, blueprint, baselineId, home, capturedAt, busy, effects: runtime.kernel.writes }),
+    recording: () => structuredClone({ version: blueprint.kind === "ha-replica" ? 2 : 1, blueprintVersion: blueprint.version, baselineId, simulated: true, truncated, events }),
     async command(raw, { signal } = {}) {
       if (closed) throw new Error("sandbox_closed");
       if (busy) throw new Error("runtime_busy");
-      const request = validateRequest(raw);
+      const request = validateRequest(raw, blueprint);
       const fingerprint = JSON.stringify(request);
       let identity = identities.get(request.commandId);
       if (identity && identity.fingerprint !== fingerprint) throw new Error("command_id_conflict");
       if (!identity) {
         if (identities.size >= 1000) throw new Error("sandbox_capacity_reached");
-        const room = actorRoom(request.pose);
+        const room = actorRoom(request.pose, blueprint);
         identity = { fingerprint, envelope: { sessionId: request.sessionId, commandId: request.commandId, input: request.input,
           ...(request.resumeFor ? { resumeFor: request.resumeFor } : {}), origin: { terminalId: room ? `sandbox-${room}` : "sandbox-doorway", observedAt: now() } } };
         identities.set(request.commandId, identity);
@@ -63,7 +66,7 @@ export async function createSandboxService({ client, now = Date.now } = {}) {
         home = await runtime.kernel.adapter.discoverHcmHome();
         capturedAt = now();
         if (!result.replayed) {
-          events.push({ request, result, before, after: structuredClone(home), capturedAt });
+          events.push({ request, result, ...(blueprint.kind === "ha-replica" ? {} : { before, after: structuredClone(home) }), capturedAt });
           if (events.length > 20) { events.shift(); truncated = true; }
         }
         return { result, snapshot: { ...service.snapshot(), busy: false }, recordingCount: events.length };
@@ -72,11 +75,11 @@ export async function createSandboxService({ client, now = Date.now } = {}) {
     async replay(recording, { signal } = {}) {
       if (closed) throw new Error("sandbox_closed");
       if (busy) throw new Error("runtime_busy");
-      const requests = validateRecording(recording);
+      const requests = validateRecording(recording, blueprint, baselineId);
       busy = true;
       let isolated;
       try {
-        isolated = await createSandboxService({ client, now });
+        isolated = await createSandboxService({ client, now, initialHome: baseline, blueprint, baselineId });
         const mapping = new Map();
         const sessions = new Map();
         const results = [];

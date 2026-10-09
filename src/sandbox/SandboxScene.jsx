@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { HOUSE_BLUEPRINT, actorRoom, isValidActorPose } from "./houseBlueprint.js";
 import { createWalker } from "./walker.js";
+import ReplicaScene from "./ReplicaScene.jsx";
 
 function disposeTree(tree) {
   const disposed = new Set();
@@ -13,7 +14,11 @@ function disposeTree(tree) {
   });
 }
 
-export default function SandboxScene({ snapshot, controls, onPose, onReady, onError }) {
+export default function SandboxScene(props) {
+  return props.snapshot?.blueprint?.kind === "ha-replica" ? <ReplicaScene {...props} /> : <SampleScene {...props} />;
+}
+
+function SampleScene({ snapshot, controls, onPose, onReady, onError }) {
   const host = useRef(null);
   const live = useRef({ snapshot, controls, onPose, onReady, onError });
   live.current = { snapshot, controls, onPose, onReady, onError };

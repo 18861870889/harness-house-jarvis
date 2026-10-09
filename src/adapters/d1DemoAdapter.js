@@ -47,6 +47,7 @@ export function createD1DemoHome() {
 // This adapter has no network transport. Even an authorized execute mutates memory only.
 export function createD1DemoAdapter({ home = createD1DemoHome() } = {}) {
   const state = structuredClone(home);
+  const entityStates = new Map(state.things.flatMap(thing => thing.capabilities.filter(c => c.binding?.entityId).map(c => [c.binding.entityId, c.binding.currentState ?? (c.state === false ? "off" : "on")])));
   const identity = { id: "home_assistant", name: state.provider.name, version: "d1-experiment", transport: "memory" };
   return {
     id: identity.id,
@@ -55,12 +56,22 @@ export function createD1DemoAdapter({ home = createD1DemoHome() } = {}) {
     getStatus: () => ({ configured: true, baseUrl: null, simulated: true }),
     identity: async () => identity,
     getConnectionStatus: async () => ({ configured: true, state: "simulated" }),
-    discoverHcmHome: async () => structuredClone(state),
+    discoverHcmHome: async () => {
+      if (state.controlGraph) {
+        for (const endpoint of state.controlGraph.endpoints) {
+          const cap = state.things.find(t => t.id === endpoint.providerThingId)?.capabilities.find(c => c.id === endpoint.capabilityId);
+          endpoint.state = typeof cap?.state === "boolean" ? cap.state : "unknown";
+        }
+        for (const asset of state.controlGraph.assets) asset.state.commandedState = state.controlGraph.endpoints.find(e => e.id === asset.primaryEndpointId)?.state ?? "unknown";
+      }
+      return structuredClone(state);
+    },
     discoverSnapshot: async () => ({ version: "1.0", provider: identity, capturedAt: new Date().toISOString(), spaces: [], devices: [], entities: [], states: [], metadata: { simulated: true } }),
     async compileAction(action) {
       const service = action.serviceCall;
       if (!service) throw new Error("Demo requires a validated HCM service call");
-      return createProviderCommand({ providerId: identity.id, target: { id: service.serviceData.entity_id, type: "entity" }, operation: `${service.domain}.${service.service}`, payload: service.serviceData });
+      return createProviderCommand({ providerId: identity.id, target: { id: service.serviceData.entity_id, type: "entity" }, operation: `${service.domain}.${service.service}`, payload: service.serviceData,
+        evidence: { observations: { thingId: action.thingId, capabilityId: action.capabilityId, value: action.value } } });
     },
     async simulate(command, { home: snapshot, item } = {}) {
       const [domain, service] = command.operation.split(".");
@@ -68,27 +79,40 @@ export function createD1DemoAdapter({ home = createD1DemoHome() } = {}) {
     },
     async execute(command, authorization) {
       assertAuthorizedProviderExecution(authorization, command);
-      const [, service] = command.operation.split(".");
-      const capabilities = state.things.flatMap((thing) => thing.capabilities);
-      const capability = capabilities.find((item) => item.binding?.entityId === command.target.id);
+      const [domain, service] = command.operation.split(".");
+      const selection = command.evidence?.observations;
+      const thing = state.things.find(t => t.id === selection?.thingId) ?? state.things.find(t => t.capabilities.some(c => c.binding?.entityId === command.target.id));
+      const capability = selection?.capabilityId ? thing?.capabilities.find(c => c.id === selection.capabilityId && c.binding?.entityId === command.target.id)
+        : thing?.capabilities.find(c => c.binding?.entityId === command.target.id);
       if (!capability) throw new Error("Unknown demo entity");
+      if (!["control", "action"].includes(capability.kind) || !capability.policy?.autoExecutable || capability.policy.risk !== "low" || capability.policy.confirmation !== "never" || thing.online === false) throw new Error("simulation_policy_blocked");
       const payload = command.payload;
       const next = service === "turn_on" ? payload.brightness_pct ?? payload.percentage ?? true
-        : service === "turn_off" ? false
+        : ["turn_off", "media_pause", "media_stop"].includes(service) ? false
+          : ["media_play", "press"].includes(service) ? true
           : service === "open_cover" ? 100 : service === "close_cover" ? 0
-            : payload.temperature ?? payload.position;
+            : payload.temperature ?? payload.position ?? payload.percentage;
       if (next === undefined) throw new Error(`Unsupported demo service ${service}`);
       capability.state = next;
+      const raw = service === "media_pause" ? "paused" : service === "media_stop" ? "idle" : service === "media_play" ? "playing"
+        : domain === "cover" ? next === 0 ? "closed" : "open"
+          : domain === "fan" && typeof next === "number" ? next === 0 ? "off" : "on"
+          : service === "set_temperature" ? entityStates.get(command.target.id) ?? "off" : next === false ? "off" : "on";
+      entityStates.set(command.target.id, raw);
+      capability.binding.currentState = raw;
+      if (payload.temperature !== undefined) capability.binding.temperature = payload.temperature;
+      if (domain === "cover" && typeof next === "number") capability.binding.currentPosition = next;
       if (payload.brightness_pct !== undefined) {
-        const thing = state.things.find((item) => item.capabilities.includes(capability));
-        for (const power of thing.capabilities.filter((item) => item.binding?.domain === "light" && item.valueType === "boolean")) power.state = true;
+        const powers = thing.capabilities.filter(item => item.binding?.domain === "light" && item.valueType === "boolean");
+        const sameEntity = powers.filter(item => item.binding.entityId === command.target.id);
+        for (const power of sameEntity.length ? sameEntity : powers.length === 1 ? powers : []) power.state = true;
       }
       return { simulated: true, state: next };
     },
     async readState(targetId) {
       const capability = state.things.flatMap((thing) => thing.capabilities).find((item) => item.binding?.entityId === targetId);
       if (!capability) throw new Error("Unknown demo state");
-      return { state: capability.binding.domain === "cover" ? capability.state === 0 ? "closed" : "open" : capability.state === false ? "off" : "on", value: capability.state };
+      return { state: entityStates.get(targetId) ?? "unknown", value: capability.state };
     },
   };
 }

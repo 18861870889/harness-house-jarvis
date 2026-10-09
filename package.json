@@ -9,6 +9,7 @@
     "demo:sandbox": "node scripts/start-house-sandbox.mjs",
     "assets:sandbox": "node scripts/build-sandbox-assets.mjs",
     "test:sandbox:ui": "node scripts/test-house-sandbox.mjs",
+    "test:sandbox:ha": "node scripts/test-ha-sandbox.mjs",
     "test:d1:live": "node scripts/test-d1-live.mjs",
     "test:harness": "vitest run src/experiments/harnessComparison.test.js src/experiments/harnessHardening.test.js src/experiments/d1IntentContext.test.js src/d1Client.test.js src/d1DecisionV2.test.js",
     "test:d1:intent:live": "node scripts/evaluate-d1-intent.mjs",

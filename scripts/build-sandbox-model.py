@@ -212,4 +212,77 @@ for obj in parts:
 
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(work, "house.blend"))
 bpy.ops.export_scene.gltf(filepath=os.path.join(output, "house.glb"), export_format="GLB", export_apply=True, export_extras=True)
+
+# Modular Blender-authored furniture lets the runtime reuse a saved, arbitrary floor plan.
+kit = []
+def group_objects(name, objects, origin=(0, 0, 0)):
+    parent = bpy.data.objects.new("kit_" + name, None)
+    bpy.context.collection.objects.link(parent)
+    parent.location = position(origin)
+    bpy.context.view_layer.update()
+    for obj in objects:
+        obj.parent = parent
+        obj.matrix_parent_inverse = parent.matrix_world.inverted()
+    parent.location = (0, 0, 0)
+    kit.append(parent)
+    return parent
+
+presets = [
+    ("desk", ("desk_", "monitor", "keyboard", "coffee_mug"), (-3.5, 0, -1.75)),
+    ("chair", ("chair_",), (-3.5, 0, -0.8)),
+    ("bookshelf", ("bookcase_", "book"), (-5.03, 0, 0)),
+    ("sofa", ("sofa_", "pillow"), (3.2, 0, 1.6)),
+    ("coffee_table", ("coffee_table_",), (3.2, 0, 0)),
+    ("plant", ("planter", "leaf"), (-4.8, 0, 2.1)),
+    ("tv", ("living_tv", "tv_bench"), (3.2, 0, -2.35)),
+    ("fan", ("fan_",), (1.15, 0, 1.8)),
+    ("curtain", ("living_curtain",), (0.8, 0, -2.67)),
+]
+for name, prefixes, origin in presets:
+    objects = [obj for obj in list(bpy.data.objects) if obj.parent is None and any(obj.name.startswith(p) for p in prefixes)]
+    group_objects(name, objects, origin)
+
+before = set(bpy.data.objects)
+cube("bed_frame", [0, 0.26, 0], [2.05, 0.36, 2.6], oak, 0.09)
+cube("bed_mattress", [0, 0.5, 0], [1.94, 0.28, 2.48], cream, 0.12)
+cube("bed_headboard", [0, 0.75, 1.22], [2.15, 1.2, 0.13], blue, 0.07)
+cube("bed_cover", [0, 0.68, -0.35], [1.96, 0.09, 1.75], blue, 0.04)
+for x in [-0.5, 0.5]:
+    cube("bed_pillow", [x, 0.7, 0.8], [0.8, 0.15, 0.42], white, 0.09)
+group_objects("bed", set(bpy.data.objects) - before)
+
+before = set(bpy.data.objects)
+cube("dining_top", [0, 0.74, 0], [1.5, 0.09, 0.84], oak, 0.15)
+for x in [-0.57, 0.57]:
+    for z in [-0.26, 0.26]:
+        cube("dining_leg", [x, 0.36, z], [0.05, 0.7, 0.05], metal, 0.01)
+for x in [-0.55, 0.55]:
+    for z in [-0.55, 0.55]:
+        cube("dining_chair", [x, 0.4, z], [0.36, 0.14, 0.36], blue, 0.05)
+        cube("dining_chair_leg", [x, 0.19, z], [0.06, 0.37, 0.06], metal)
+cylinder("dining_vase", [0, 0.9, 0], 0.065, 0.24, rose)
+group_objects("dining", set(bpy.data.objects) - before)
+
+before = set(bpy.data.objects)
+cube("kitchen_base", [0, 0.42, 0], [1.7, 0.84, 0.6], white)
+cube("kitchen_worktop", [0, 0.87, 0], [1.73, 0.05, 0.62], cream)
+for x in [-0.56, 0, 0.56]:
+    cube("kitchen_cabinet", [x, 0.46, 0.305], [0.52, 0.7, 0.018], white)
+    cube("kitchen_handle", [x, 0.65, 0.327], [0.18, 0.02, 0.018], metal)
+cube("kitchen_hob", [-0.4, 0.905, 0], [0.55, 0.02, 0.4], dark)
+cube("kitchen_sink", [0.44, 0.908, 0], [0.4, 0.025, 0.35], metal)
+group_objects("kitchen", set(bpy.data.objects) - before)
+
+before = set(bpy.data.objects)
+cube("vanity_base", [0, 0.42, 0], [1.25, 0.7, 0.5], oak)
+cube("vanity_sink", [0, 0.82, 0], [0.6, 0.1, 0.4], white, 0.08)
+cube("vanity_mirror", [0, 1.42, -0.23], [0.84, 0.72, 0.028], glass)
+group_objects("vanity", set(bpy.data.objects) - before)
+
+bpy.ops.object.select_all(action="DESELECT")
+for root in kit + [avatar]:
+    root.select_set(True)
+    for child in root.children_recursive:
+        child.select_set(True)
+bpy.ops.export_scene.gltf(filepath=os.path.join(output, "furniture-kit.glb"), export_format="GLB", export_apply=True, export_extras=True, use_selection=True)
 print("Sandbox GLB exported to", output)

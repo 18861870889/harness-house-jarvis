@@ -1,0 +1,79 @@
+{
+  "verifiedDate": "2026-10-09",
+  "suite": "ha-backed-house-sandbox",
+  "stage": "alpha-read-only-directory-and-simulation",
+  "unit": { "passed": 460, "skipped": 3 },
+  "build": { "passed": true, "chunkSizeWarning": true },
+  "capturedHouse": {
+    "runAt": "2026-10-09T10:55:57.168Z",
+    "passed": true,
+    "caseGroups": 11,
+    "rooms": 12,
+    "physicalDevices": 45,
+    "logicalAssets": 43,
+    "sceneDevices": 61,
+    "rapierRoomRoutesPassed": 12,
+    "d1SpotlightLatencyMs": 1216,
+    "exactGangReadbackVerified": true
+  },
+  "syntheticHouse": {
+    "runAt": "2026-10-09T10:57:37.909Z",
+    "passed": true,
+    "caseGroups": 11,
+    "rooms": 8,
+    "physicalDevices": 11,
+    "logicalAssets": 4,
+    "sceneDevices": 13,
+    "rapierRoomRoutesPassed": 8
+  },
+  "sampleAndVoiceRegression": {
+    "runAt": "2026-10-09T10:40:57.942Z",
+    "passed": true,
+    "caseGroups": 16,
+    "speechSource": "browser-event-fixture",
+    "microphoneHardwareVerified": false
+  },
+  "visualChecks": {
+    "viewports": [
+      { "width": 1440, "height": 1000 },
+      { "width": 768, "height": 1024 },
+      { "width": 390, "height": 844 }
+    ],
+    "canvasPixelsNonblank": true,
+    "completeHouseFraming": true,
+    "actualLampMaterialChecked": true,
+    "typingPreservesCanvas": true,
+    "inspectionRoomDoesNotChangeSpeakerRoom": true,
+    "fullHouseViewRestoresAfterDeviceFocus": true,
+    "finalUserChromeDemoElapsedMs": 185
+  },
+  "isolation": {
+    "realDeviceWrites": 0,
+    "haTransport": "state-and-registry-reads-only",
+    "memoryAdapterBaseUrl": null,
+    "originalHouseFilesModified": false,
+    "sourceRefreshDoesNotOverwriteSimulation": true,
+    "otherBaselineReplayRejected": true,
+    "replayDoesNotChangeCurrentWorld": true,
+    "sensorsRemainReadOnly": true,
+    "privateStaticPathsDeniedIncludingViteFs": true,
+    "credentialFieldsRedacted": true
+  },
+  "haLiveConnection": {
+    "verified": false,
+    "reason": "ha_hostname_unavailable",
+    "referenceSnapshotAt": "2026-06-27T00:09:56.956Z",
+    "positiveRefreshCoveredWithRegistryFixture": true,
+    "pollIntervalMs": 30000
+  },
+  "knownLimits": [
+    "Live HA reads require an available configured HA address.",
+    "Dimensions, doors and furniture are inferred, not measured interior geometry.",
+    "No real HA controls are exposed by this sandbox.",
+    "Sensor movement, errors and multi-resident simulation are not implemented.",
+    "Browser STT is not an offline speech guarantee; microphone hardware was not tested.",
+    "Historical strict D1 semantic coverage is 34/36 and was not rerun this round.",
+    "Production authentication, dependency audit and release gate remain incomplete."
+  ],
+  "privacy": "Aggregate report only; private floorplan, states, entities, poses, tokens and full traces stay local."
+}

@@ -6,6 +6,9 @@ import { createSandboxService } from "../src/sandbox/sandboxService.js";
 import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { readSandboxSourceConfig, createHaHouseSource, prepareHaHouse } from "../src/sandbox/haHouse.js";
+import { haHouseFixture } from "../src/sandbox/haHouse.fixture.js";
+import { sandboxDevices } from "../src/sandbox/sandboxDeviceView.js";
 
 const port = Number(process.env.SANDBOX_PORT ?? 5184);
 if (!Number.isInteger(port) || port < 1024 || port > 65435) throw new Error("invalid_port");
@@ -33,7 +36,7 @@ if (process.argv.includes("--background")) {
   child.unref();
   try {
     let healthy = false;
-    for (let attempt = 0; attempt < 40 && !exited; attempt += 1) {
+    for (let attempt = 0; attempt < 120 && !exited; attempt += 1) {
       if (await probe()) { healthy = true; break; }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
@@ -43,7 +46,19 @@ if (process.argv.includes("--background")) {
   } catch (error) { if (!exited) child.kill("SIGTERM"); throw error; }
 } else {
   const client = createD1Client({ endpoint: process.env.D1_ENDPOINT ?? "http://192.168.1.154:8080/v1/systemone", timeoutMs: 5000 });
-  let service = await createSandboxService({ client });
+  const fixture = process.env.SANDBOX_FIXTURE === "1" ? haHouseFixture() : null;
+  const config = process.env.SANDBOX_SAMPLE === "1" || fixture ? null : readSandboxSourceConfig();
+  const source = config ? await createHaHouseSource({ ...config, cachePath: resolve("build/house-sandbox/ha-home.local.json") }) : null;
+  const newService = () => {
+    const house = source?.house() ?? (fixture ? prepareHaHouse(fixture.home, {}, fixture.state) : null);
+    return createSandboxService({ client, ...(house ? { initialHome: house.home, blueprint: house.blueprint, baselineId: house.baselineId } : {}) });
+  };
+  let service = await newService();
+  const present = snapshot => ({ ...snapshot, source: source ? { ...source.status(), copyCapturedAt: snapshot.home.syncedAt, updateAvailable: source.status().latestBaselineId !== snapshot.baselineId }
+    : { kind: fixture ? "fixture" : "sample", readOnly: true, connectionState: "simulated", updateAvailable: false } });
+  const refreshTimer = source ? setInterval(() => { source.refresh().catch(() => {}); }, 30000) : null;
+  refreshTimer?.unref();
+  if (source) source.refresh().catch(() => {});
   let transitioning = false;
   const app = express();
   app.disable("x-powered-by");
@@ -55,7 +70,12 @@ if (process.argv.includes("--background")) {
     next();
   });
   app.use(express.json({ limit: "512kb" }));
-  app.get("/api/sandbox/state", (_req, res) => res.json({ serviceName, snapshot: service.snapshot(), recordingCount: service.recording().events.length, model: client.model }));
+  app.get("/api/sandbox/state", (_req, res) => res.json({ serviceName, snapshot: present(service.snapshot()), recordingCount: service.recording().events.length, model: client.model }));
+  app.get("/api/sandbox/reference", (_req, res) => {
+    const house = source?.house();
+    res.json({ source: source?.status() ?? null, devices: house ? sandboxDevices(house.home, house.blueprint) : [] });
+  });
+  app.get("/api/sandbox/source/status", (_req, res) => res.json({ source: source?.status() ?? null }));
   app.get("/api/sandbox/recording", (_req, res) => res.json(service.recording()));
   const handler = (method) => async (req, res, next) => {
     if (transitioning) return res.status(409).json({ error: "runtime_busy" });
@@ -63,28 +83,35 @@ if (process.argv.includes("--background")) {
     res.on("close", () => { if (!res.writableEnded) controller.abort(); });
     try { res.json(await method(req.body, controller.signal)); } catch (error) { next(error); }
   };
-  app.post("/api/sandbox/command", handler((body, signal) => service.command(body, { signal })));
+  app.post("/api/sandbox/command", handler(async (body, signal) => { const data = await service.command(body, { signal }); return { ...data, snapshot: present(data.snapshot) }; }));
   app.post("/api/sandbox/replay", handler((body, signal) => service.replay(body, { signal })));
+  app.post("/api/sandbox/source/refresh", handler(async () => { if (source) await source.refresh(); return { snapshot: present(service.snapshot()), recordingCount: service.recording().events.length }; }));
   app.post("/api/sandbox/reset", async (_req, res, next) => {
     if (transitioning || service.snapshot().busy) return res.status(409).json({ error: "runtime_busy" });
     transitioning = true;
-    try { await service.close(); service = await createSandboxService({ client }); res.json({ snapshot: service.snapshot(), recordingCount: 0 }); }
+    try { const replacement = await newService(); await service.close(); service = replacement; res.json({ snapshot: present(service.snapshot()), recordingCount: 0 }); }
     catch (error) { next(error); }
     finally { transitioning = false; }
   });
   app.use("/api", (_req, res) => res.status(404).json({ error: "sandbox_api_only" }));
   app.get("/", (_req, res) => res.redirect("/sandbox.html"));
-  const vite = await createViteServer({ configFile: false, plugins: [react()], server: { host: "127.0.0.1", middlewareMode: true, hmr: { host: "127.0.0.1", port: port + 100 }, fs: { allow: [process.cwd()] } }, appType: "mpa" });
+  app.use((req, res, next) => {
+    const path = decodeURIComponent(req.path);
+    return /(?:^|\/)(?:data|build)\//.test(path) || /(?:^|\/)\.env(?:\.|$)/.test(path) || path.endsWith("/home_model_cache.json") ? res.status(404).end() : next();
+  });
+  const vite = await createViteServer({ configFile: false, plugins: [react()], server: { host: "127.0.0.1", middlewareMode: true, hmr: { host: "127.0.0.1", port: port + 100 }, fs: { allow: [process.cwd()], deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/data/**", "**/build/**", "**/home_model_cache.json"] } }, appType: "mpa" });
   app.use(vite.middlewares);
   app.use((error, _req, res, _next) => {
     const message = error.message ?? "sandbox_failed";
-    res.status(/busy|conflict/.test(message) ? 409 : /invalid|incomplete|origin|required|large/.test(message) ? 400 : 500).json({ error: message });
+    res.status(/busy|conflict/.test(message) ? 409 : /invalid|incomplete|origin|required|large|baseline_mismatch/.test(message) ? 400 : 500).json({ error: message });
   });
-  const server = app.listen(port, "127.0.0.1", () => console.log(`Harness House sandbox: http://localhost:${port}/ — memory devices only, local D1`));
+  const server = app.listen(port, "127.0.0.1", () => console.log(`Harness House sandbox: http://localhost:${port}/ — ${source ? "HA read-only source + isolated memory copy" : fixture ? "HA fixture" : "sample"}, local D1; real device writes disabled`));
   let shuttingDown = false;
   const shutdown = async (exitCode = 0) => {
     if (shuttingDown) return;
     shuttingDown = true;
+    if (refreshTimer) clearInterval(refreshTimer);
+    source?.close();
     server.close();
     while (service.snapshot().busy) await new Promise((resolve) => setTimeout(resolve, 100));
     await service.close();

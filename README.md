@@ -30,22 +30,26 @@ Harness House 是一个开源智能家居 AI 框架，提供统一的家庭能�
 
 ### 可行走的家庭沙盒 Alpha
 
-独立的 **Blender 资产 + Three.js 实时场景 + Rapier 碰撞 + Pi/D1** 样板已加入：书房、客厅、住户行走、文字/浏览器语音输入、模拟设备状态可视化，以及轨迹导出与隔离回放。**不连接真实 HA，不改已有户型，不调用云端 LLM。**
+独立的 **Blender 资产 + Three.js 实时场景 + Rapier 碰撞 + Pi/D1** 沙盒已支持复用原项目的户型编辑数据、HA 设备目录、多键开关与逻辑灯具映射。**HA 只读接入；控制指令仍只改变独立模拟副本，不改原户型，不调用云端 LLM。**
 
 ```bash
 npm ci
+# 接入既有家庭：按模板配置原项目目录（本地文件不入库）
+cp data/sandbox-source.example.json data/sandbox-source.local.json
 npm run demo:sandbox
 # 在 Chrome 打开 http://localhost:5184/
 # 可选后台启动：npm run demo:sandbox -- --background
 ```
 
-点击地面、W/A/S/D、方向键或屏幕方向按钮移动人物；房间归属来自人物位置，不是摄像机视角。试试“打开书房射灯”→“还是太暗了”，然后走到客厅说“开灯”。确认提问后回复“可以”；另起话题可点“新话题”。
+读取原目录的 `home_model_cache.json`、`data/spatial-editor.local.json` 和 `data/home-model-overlay.local.json`；HA 地址/令牌只从服务端环境或原目录 `.env` 的 HA 字段读取。配置缺失时保留两房间样板；已配置家庭读取失败则报错，不偷偷换成样板。当前本机保存目录对应 12 个区域、45 台物理设备、43 个逻辑受控对象和 61 个场景设备点，私人户型与目录不会提交到仓库。
 
-设备只在内存中运行，三维灯光、电视、风扇和窗帘随模拟执行回读更新。“场景轨迹”可导出 JSON 或回放；重新开始/重启会清空沙盒。语音输入使用 Chrome 的浏览器 STT，可能依赖网络，播报默认关闭；这不是完全离线语音方案。
+点击地面、W/A/S/D、方向键或屏幕方向按钮移动人物；房间归属来自人物位置，不是摄像机视角或设备面板所选房间。可在“房间设备”选择书房，再点击脚印走过去，输入“打开书房射灯”。设备详情可对照 HA 参考快照、模拟状态和实际控制回路。传感器只读，不随人物移动伪造真实状态。
 
-模型默认使用局域网 `http://192.168.1.154:8080/v1/systemone`，可通过 `D1_ENDPOINT` 修改；无需模型 key、HA 令牌或 Hermes。Node.js 24+，浏览器须支持 WebGL。预生成 GLB 已包含在仓库，普通运行不需要安装 Blender；重建资产用 `npm run assets:sandbox`。
+HA 每 30 秒只读刷新目录和参考状态，失败时保留最后快照并标记时间/错误；新版快照需显式载入，不覆盖进行中的模拟。“场景轨迹”可导出 JSON 或隔离回放，绑定录制时的家庭基线。语音输入使用 Chrome STT，可能联网，TTS 默认关闭；这不是完全离线语音方案。
 
-运行 `npm run test:sandbox:ui` 验证本地 D1、Chrome 桌面/手机画布、行走、回放和语音事件。说明、架构及已知限制见 [家庭沙盒 Alpha](docs/HOME_SANDBOX_ALPHA.md)。此入口在 5184，原主页与 `demo:d1` 保持独立。
+模型默认使用局域网 `http://192.168.1.154:8080/v1/systemone`，可通过 `D1_ENDPOINT` 修改；无需模型 key 或 Hermes。Node.js 24+，浏览器须支持 WebGL。预生成 GLB 已入库，普通运行不需要 Blender；重建资产用 `npm run assets:sandbox`。家具是风格化通用资产，门洞和米制尺寸为推断，不是实测装修图。
+
+运行 `npm run test:sandbox:ha` 自动启动隔离的合成 HA 家庭并测试本地 D1、Chrome 桌面/手机画布、行走、回放和只读边界；设置 `HARNESS_SANDBOX_SOURCE_DIRECTORY` 可测试自己的已保存家庭，仍不会控制真实设备。旧样板的 `test:sandbox:ui` 另含语音事件回归，需显式样板服务。说明和验证结果见 [家庭沙盒 Alpha](docs/HOME_SANDBOX_ALPHA.md)。入口 5184，原主页与 `demo:d1` 保持独立。
 
 ### D1 本地决策实验
 
