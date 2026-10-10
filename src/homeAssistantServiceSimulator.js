@@ -18,7 +18,7 @@ export function simulateHcmServiceCalls(accepted = [], home) {
 export function simulateHcmServiceCall(item, home) {
   const serviceCall = item?.serviceCall;
   const entityId = serviceCall?.serviceData?.entity_id;
-  const match = findCapabilityByEntity(home, entityId);
+  const match = findCapabilityByEntity(home, entityId, item?.action?.capabilityId ?? item?.capability?.id);
   const action = item?.action ?? {
     thingId: item?.thing?.id,
     capabilityId: item?.capability?.id,
@@ -63,11 +63,11 @@ export function simulateHcmServiceCall(item, home) {
   };
 }
 
-function findCapabilityByEntity(home, entityId) {
+function findCapabilityByEntity(home, entityId, capabilityId) {
   if (!entityId) return null;
   for (const thing of home?.things ?? []) {
     for (const capability of thing.capabilities ?? []) {
-      if (capability.binding?.entityId === entityId) return { thing, capability };
+      if (capability.binding?.entityId === entityId && (!capabilityId || capability.id === capabilityId)) return { thing, capability };
     }
   }
   return null;

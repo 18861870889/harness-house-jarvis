@@ -9,8 +9,9 @@ const errors = { runtime_busy: "沙盒正在处理上一项操作。", stale_cla
 const haErrors = { ha_hostname_unavailable: "HA 地址无法解析", ha_unavailable: "HA 暂时不可达", ha_timeout: "HA 连接超时", ha_authentication_failed: "HA 令牌需更新", ha_not_configured: "HA 未配置", invalid_saved_layout: "户型数据需检查" };
 const formatTime = value => value ? new Date(value).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "未同步";
 const statuses = { executed: "已模拟执行", answered: "已回答", needs_clarification: "待补充", failed: "未执行", execution_unknown: "结果待核实", cancelled: "已取消", dry_run: "仅预演" };
-const tasks = { power_on: "打开", power_off: "关闭", mixed_control: "分别开关", set_value: "设定数值", brighter: "调亮", dimmer: "调暗", warmer: "升温", cooler: "降温", state_query: "查询状态", capability_query: "查询能力", location_query: "查询位置", feedback: "效果反馈", confirm: "确认方案", no_action: "不操作", media_stop: "停止播放", unclear: "待澄清" };
+const tasks = { power_on: "打开", power_off: "关闭", mixed_control: "分别开关", set_value: "设定数值", brighter: "调亮", dimmer: "调暗", warmer: "升温", cooler: "降温", state_query: "查询状态", capability_query: "查询能力", location_query: "查询位置", feedback: "效果反馈", confirm: "确认方案", no_action: "不操作", device_action: "设备动作", media_stop: "停止播放", unclear: "待澄清" };
 const extents = { one: "操作一台", only_one: "最终只留一盏", all: "全部匹配设备", matching: "指定设备或类别", default: "房间默认", unclear: "待澄清" };
+const accessLabel = cap => ({ execute: "接口已接入", confirm: "需确认", read: "只读", blocked: "受保护" })[cap.access] ?? "未适配";
 async function api(path, body) {
   const response = await fetch(`/api/sandbox/${path}`, body === undefined ? undefined : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const result = await response.json();
@@ -20,7 +21,7 @@ async function api(path, body) {
 
 function DecisionDetails({ result }) {
   const frame = result.d1?.semanticFrame;
-  const sources = { terminal: "发言终端", explicit_room: "明确房间", conversation_target: "对话目标", conversation_room: "对话房间", ambiguous_origin: "位置不确定" };
+  const sources = { terminal: "发言终端", explicit_room: "明确房间", confirmed_proposal: "已确认方案", conversation_target: "对话目标", conversation_room: "对话房间", ambiguous_origin: "位置不确定" };
   const bindings = { catalogue_literal: "设备名称", room_device_class: "房间 + 类别", semantic_domain: "房间 + 目标", conversation_target: "明确指代", d1_choice: "模型选择" };
   return <details className="decision-details">
     <summary>本轮决策记录</summary>
@@ -32,10 +33,21 @@ function DecisionDetails({ result }) {
         <dt>数量 / 范围</dt><dd>{extents[frame.extent]}</dd>
         <dt>目标绑定</dt><dd>{frame.task === "confirm" ? "已确认方案" : bindings[frame.targetSource]}</dd>
         <dt>动作目标</dt><dd>{result.actions?.map(a => a.logicalAssetName ?? a.thingName).join("、") || "无"}</dd>
+        {result.d1.deviceOperation && <><dt>设备动作</dt><dd>{result.d1.deviceOperationChoices?.[result.d1.deviceOperation.choice]?.label ?? "未匹配接口"}</dd></>}
       </> : <><dt>候选方案</dt><dd>{result.d1?.candidateCount ?? "—"}</dd></>}
       <dt>意图分数</dt><dd>{result.d1?.probability?.toFixed(3) ?? "—"}</dd>
       <dt>执行结果</dt><dd>{statuses[result.status] ?? result.status}</dd>
     </dl>
+  </details>;
+}
+
+function OperationDetails({ device }) {
+  if (!device || device.type === "light") return null;
+  return <details className="decision-details operation-details" open>
+    <summary>操作能力 · {device.operations?.length ?? 0} 项</summary>
+    <dl>{device.operations?.length ? device.operations.map(op => <React.Fragment key={op.id}>
+      <dt>{op.label.split(/[，/]/)[0]}</dt><dd>{op.missingRange ? "范围待同步" : op.access === "confirm" ? "需确认" : "可模拟"}</dd>
+    </React.Fragment>) : <><dt>控制接口</dt><dd>未接入或受保护</dd></>}</dl>
   </details>;
 }
 
@@ -227,7 +239,20 @@ export default function SandboxApp() {
             <div className="composer-tools"><span><UserRound size={12} />{roomName}</span><div><button className={`icon-button ${listening ? "is-active" : ""}`} type="button" onClick={microphone} disabled={!speechInput.supported || busy || !sceneReady || !snapshot} title="浏览器语音输入，识别服务可能需要联网" aria-label={listening ? "停止语音输入" : "开始语音输入"}>{listening ? <MicOff size={17} /> : <Mic size={17} />}</button><button className={`icon-button ${tts ? "is-active" : ""}`} onClick={() => { setTts(!tts); if (tts) speechOutput.stop(); }} disabled={!speechOutput.supported} title={tts ? "关闭播报" : "开启播报"} aria-label={tts ? "关闭播报" : "开启播报"}>{tts ? <Volume2 size={17} /> : <VolumeX size={17} />}</button></div></div>
           </div>
         </> : <div className="trace-panel"><div className="trace-tools"><button className="tool-command" onClick={() => replay()} disabled={!recordingCount || busy}><Play size={14} />回放</button><button className="icon-button" title="导出轨迹" aria-label="导出轨迹" onClick={exportRecording} disabled={!recordingCount || busy}><Download size={17} /></button><button className="icon-button" title="导入并回放" aria-label="导入并回放" onClick={() => upload.current.click()} disabled={busy}><Upload size={17} /></button><input ref={upload} type="file" hidden accept="application/json,.json" onChange={importRecording} /></div>{error && <div role="alert" className="sandbox-error">{error}</div>}{!replayResults.length ? <div className="trace-empty">{recordingCount ? `${recordingCount} 轮交互已记录` : "暂无交互轨迹"}</div> : replayResults.map((entry, index) => <div className="trace-row" key={index}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{entry.input}</strong><p>{entry.result.summary}</p></div><small className={entry.matches ? "match" : "difference"}>{entry.matches ? "一致" : "差异"}</small></div>)}</div>}
-        <section className="sandbox-device-section"><div className="section-heading"><h2>房间设备</h2><span>{visibleDevices.length} 项</span></div>{isReplica && <div className="device-scope"><select aria-label="查看房间设备" value={inspectionRoom ?? "actor"} onChange={event => { setInspectionRoom(event.target.value === "actor" ? null : event.target.value); setSelectedDevice(null); }}><option value="actor">随住户 · {roomName}</option>{blueprint.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}{devices.some(d => !blueprint.rooms.some(r => r.id === d.roomId)) && <option value="unknown">未分区</option>}</select><button className="icon-button" aria-label="走到所选房间" title="走到所选房间" disabled={busy || listening || !sceneReady || !blueprint.roomSpawns[inspectionRoom]} onClick={() => { setSelectedDevice(null); setDestination({ key: crypto.randomUUID(), pose: blueprint.roomSpawns[inspectionRoom] }); }}><Footprints size={16} /></button></div>}<div className="sandbox-devices">{visibleDevices.map((device) => { const Icon = device.type === "light" ? LampCeiling : device.type === "fan" ? Fan : device.type === "tv" ? Tv : House; return <button key={device.id} className={`device-row ${selectedDevice === device.id ? "selected" : ""}`} onClick={() => setSelectedDevice(selectedDevice === device.id ? null : device.id)} aria-expanded={selectedDevice === device.id}><span className="device-icon"><Icon size={16} /></span><span>{device.name}</span><strong className={deviceStatus(device) === "开启" ? "on" : ""}>{deviceStatus(device)}</strong><ChevronDown size={13} /></button>; })}</div>{selected && <div className="device-details"><strong>{selected.name}</strong>{reference && <div className="reference-value"><span>HA 参考快照</span><span>{deviceStatus(reference)}</span></div>}<div><span>模拟副本</span><span>{deviceStatus(selected)}</span></div>{selected.capabilities.slice(0, 6).map(capability => <div key={capability.id}><span>{capability.name}</span><span>{capability.access === "execute" ? "模拟可控" : "只读"} · {typeof capability.state === "boolean" ? capability.state ? "是" : "否" : String(capability.state ?? "未知")}</span></div>)}{selected.capabilities.length > 6 && <details><summary>全部 {selected.capabilities.length} 项能力</summary><div className="capability-list">{selected.capabilities.map(capability => <div key={capability.id}><span>{capability.name}</span><span>{capability.access === "execute" ? "模拟可控" : "只读"}</span></div>)}</div></details>}{selected.controller && <span>控制器：{selected.controller.name} · {({ left: "左键", middle: "中键", right: "右键" })[selected.controller.channel] ?? selected.controller.channel}</span>}</div>}</section>
+        <section className="sandbox-device-section">
+          <div className="section-heading"><h2>房间设备</h2><span>{visibleDevices.length} 项</span></div>
+          {isReplica && <div className="device-scope"><select aria-label="查看房间设备" value={inspectionRoom ?? "actor"} onChange={event => { setInspectionRoom(event.target.value === "actor" ? null : event.target.value); setSelectedDevice(null); }}><option value="actor">随住户 · {roomName}</option>{blueprint.rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}{devices.some(d => !blueprint.rooms.some(r => r.id === d.roomId)) && <option value="unknown">未分区</option>}</select><button className="icon-button" aria-label="走到所选房间" title="走到所选房间" disabled={busy || listening || !sceneReady || !blueprint.roomSpawns[inspectionRoom]} onClick={() => { setSelectedDevice(null); setDestination({ key: crypto.randomUUID(), pose: blueprint.roomSpawns[inspectionRoom] }); }}><Footprints size={16} /></button></div>}
+          <div className="sandbox-devices">{visibleDevices.map((device) => { const Icon = device.type === "light" ? LampCeiling : device.type === "fan" ? Fan : device.type === "tv" ? Tv : House; return <button key={device.id} className={`device-row ${selectedDevice === device.id ? "selected" : ""}`} onClick={() => setSelectedDevice(selectedDevice === device.id ? null : device.id)} aria-expanded={selectedDevice === device.id}><span className="device-icon"><Icon size={16} /></span><span>{device.name}</span><strong className={deviceStatus(device) === "开启" ? "on" : ""}>{deviceStatus(device)}</strong><ChevronDown size={13} /></button>; })}</div>
+          {selected && <div className="device-details">
+            <strong>{selected.name}</strong>
+            {reference && <div className="reference-value"><span>HA 参考快照</span><span>{deviceStatus(reference)}</span></div>}
+            <div><span>模拟副本</span><span>{deviceStatus(selected)}</span></div>
+            {selected.capabilities.slice(0, 6).map(capability => <div key={capability.id}><span>{capability.name}</span><span>{accessLabel(capability)} · {typeof capability.state === "boolean" ? capability.state ? "是" : "否" : String(capability.state ?? "未知")}</span></div>)}
+            {selected.capabilities.length > 6 && <details><summary>全部 {selected.capabilities.length} 项能力</summary><div className="capability-list">{selected.capabilities.map(capability => <div key={capability.id}><span>{capability.name}</span><span>{accessLabel(capability)}</span></div>)}</div></details>}
+            {selected.controller && <span>控制器：{selected.controller.name} · {({ left: "左键", middle: "中键", right: "右键" })[selected.controller.channel] ?? selected.controller.channel}</span>}
+          </div>}
+        </section>
+        <OperationDetails device={selected} />
         {latestResult && <DecisionDetails result={latestResult} />}
       </aside>
     </div>

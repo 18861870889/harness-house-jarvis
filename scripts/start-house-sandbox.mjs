@@ -8,6 +8,7 @@ import { closeSync, mkdirSync, openSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { readSandboxSourceConfig, createHaHouseSource, prepareHaHouse } from "../src/sandbox/haHouse.js";
 import { haHouseFixture } from "../src/sandbox/haHouse.fixture.js";
+import { createNonLightingFixture } from "../src/sandbox/nonLightingFixture.js";
 import { sandboxDevices } from "../src/sandbox/sandboxDeviceView.js";
 
 const port = Number(process.env.SANDBOX_PORT ?? 5184);
@@ -48,7 +49,11 @@ if (process.argv.includes("--background")) {
   } catch (error) { if (!exited) child.kill("SIGTERM"); throw error; }
 } else {
   const client = createD1Client({ endpoint: process.env.D1_ENDPOINT ?? "http://192.168.1.154:8080/v1/systemone", timeoutMs: 5000 });
-  const fixture = process.env.SANDBOX_FIXTURE === "1" ? haHouseFixture() : null;
+  const fixture = ["1", "devices"].includes(process.env.SANDBOX_FIXTURE) ? haHouseFixture() : null;
+  if (process.env.SANDBOX_FIXTURE === "devices") for (const thing of createNonLightingFixture().things.filter(t => !["light", "switch_panel"].includes(t.type))) {
+    const index = fixture.home.things.findIndex(t => t.id === thing.id);
+    if (index >= 0) fixture.home.things[index] = thing; else fixture.home.things.push(thing);
+  }
   const config = process.env.SANDBOX_SAMPLE === "1" || fixture ? null : readSandboxSourceConfig();
   const source = config ? await createHaHouseSource({ ...config, cachePath: resolve("build/house-sandbox/ha-home.local.json") }) : null;
   const newService = () => {

@@ -1,0 +1,78 @@
+{
+  "verifiedDate": "2026-10-10",
+  "runAt": "2026-10-10T02:47:03.724Z",
+  "suite": "d1-non-light-devices-v3.1",
+  "stage": "alpha-simulation-only",
+  "decisionVersion": "v3",
+  "contractVersion": "3.1",
+  "model": "d1-3b-q4",
+  "nativeD1Regression": {
+    "passed": 57,
+    "failed": 0,
+    "syntheticCapabilityScenarios": 45,
+    "existingHaCacheScenarios": 12,
+    "assertions": [
+      "exact device, service and typed parameters",
+      "unselected devices remain unchanged",
+      "feature masks and unavailable interfaces are enforced",
+      "range, unit and numeric-step validation",
+      "confirmed one-time feeding and repeatable IR buttons",
+      "cross-room commands and unchanged confirmation origin",
+      "pause versus stop versus power, including a confirmed alternative",
+      "read-only sensor queries and offline-device rejection"
+    ],
+    "timing": {
+      "unit": "scenario-group wall-clock milliseconds",
+      "medianMs": 167,
+      "p95Ms": 704,
+      "includesMultiTurnScenarios": true,
+      "isUiLatencyOrSla": false
+    },
+    "isIndependentBlindAccuracyEvaluation": false
+  },
+  "unit": { "passed": 624, "failed": 0, "skipped": 3 },
+  "browser": {
+    "extendedFixtureGroupsPassed": 15,
+    "existingHouseGroupsPassed": 11,
+    "viewports": [
+      { "width": 1440, "height": 1000 },
+      { "width": 768, "height": 1024 },
+      { "width": 390, "height": 844 }
+    ],
+    "canvasNonblankAndFullyFramed": true,
+    "numericReadbackAnd3dCurtainPosition": true,
+    "mediaPauseAndRepeatableIr": true,
+    "rackMotionAndExactFeedingConfirmation": true,
+    "typingPreservesCanvas": true
+  },
+  "build": { "passed": true, "chunkSizeWarning": true },
+  "existingCacheLimits": {
+    "referenceDate": "2026-06-27",
+    "haLiveReadVerified": false,
+    "acTemperatureBoundsMissing": true,
+    "rackMotionInterfaceMissing": true,
+    "feederActionInterfaceMissing": true,
+    "tvOffline": true,
+    "speakerPauseAvailableButStopUnavailable": true,
+    "vacuumNotPresentInCache": true,
+    "unsupportedActionsRemainBlocked": true
+  },
+  "isolation": {
+    "realDeviceWrites": 0,
+    "cloudLlmCalls": 0,
+    "nativeSuiteConnectsToHa": false,
+    "nativeSuiteReadsEnvFile": false,
+    "originalHouseFilesModified": false,
+    "testDevicesAddedToOriginalHouse": false,
+    "sensorsRemainReadOnly": true
+  },
+  "knownLimits": [
+    "Primitive operations only; complex multi-intent and custom feeding amounts remain incomplete.",
+    "A button acknowledgement does not verify a hardware physical effect.",
+    "Live HA reads and real-device pilot are not validated.",
+    "Three.js device feedback is not measured thermal, light or cleaning-path simulation.",
+    "Browser speech may use an external service; microphone hardware was not tested.",
+    "Main application migration and production release gates remain incomplete."
+  ],
+  "privacy": "Aggregate only; household names, IDs, states, floorplan, credentials and full traces remain local."
+}

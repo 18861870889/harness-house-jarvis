@@ -11,9 +11,10 @@ import { createHcmHome } from "../hcm.js";
 import { createReplicaBlueprint } from "./replicaBlueprint.js";
 
 const pick = (object, keys) => Object.fromEntries(keys.filter(k => object?.[k] !== undefined).map(k => [k, object[k]]));
-const bindingKeys = ["provider", "entityId", "domain", "platform", "deviceId", "currentState", "deviceClass", "supportedFeatures", "min", "max", "step", "unit", "options", "hvacModes", "temperature", "currentTemperature", "currentPosition"];
+const bindingKeys = ["provider", "entityId", "domain", "platform", "deviceId", "currentState", "deviceClass", "supportedFeatures", "min", "max", "step", "min_temp", "max_temp", "unit", "options", "hvacModes", "temperature", "currentTemperature", "currentPosition", "percentage", "percentageStep", "oscillating", "volumeLevel", "volumeMuted"];
 function publicCapability(capability) {
   const result = { ...pick(capability, ["id", "name", "kind", "valueType", "state", "unit", "policy"]), binding: pick(capability.binding, bindingKeys) };
+  if (capability.evidence?.constraints) result.evidence = { constraints: pick(capability.evidence.constraints, ["min", "max", "step", "unit"]) };
   if (capability.kind === "config" || /密码|密钥|password|secret|token|credential/i.test(`${capability.name} ${capability.binding?.entityId}`)) {
     result.state = "redacted";
     result.binding = pick(result.binding, ["provider", "entityId", "domain", "platform", "deviceId", "deviceClass"]);

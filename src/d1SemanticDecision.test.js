@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createD1DemoHome } from "./adapters/d1DemoAdapter.js";
 import { buildD1SemanticRequest, compileD1SemanticDecision, decideWithD1V3 } from "./d1SemanticDecision.js";
 import { normalizeHcmPlannerDraft } from "./hcmPlanner.js";
+import { deviceOperations } from "./deviceOperations.js";
 
 const origin = room => ({ currentRoom: { id: room, name: room === "study" ? "书房" : "客厅", source: "configured_terminal" } });
 const score = choice => ({ choice, probability: 0.99, margin: 0.98 });
@@ -10,6 +11,11 @@ function compile(input, { home = createD1DemoHome(), conversation = origin("stud
   const ids = pack.devices.filter(d => target === "lights" ? d.type === "light" : d.name === target).map(d => d.id);
   pack.targetChoices = { t0: { ids, label: target }, unclear: { ids: [], label: "未知目标" } };
   const classification = { answers: { task: { ...score(task), probability }, extent: score(extent), feedback: score(feedback), target_form: score("named") }, target: score("t0"), latencyMs: 10 };
+  if (task === "set_value") {
+    const device = pack.devices.find(d => ids.includes(d.id));
+    const op = device && deviceOperations(device, home).find(o => o.operation === "set_temperature");
+    if (op) { pack.deviceOperationChoices = { op0: op }; classification.deviceOperation = score("op0"); }
+  }
   return { draft: compileD1SemanticDecision({ input, home, conversation, pack, classification }), pack, home };
 }
 
@@ -206,7 +212,7 @@ describe("D1 semantic contract v3", () => {
 
   it("accepts a known temperature range without changing another capability", () => {
     const { draft } = compile("把书房空调调到24度", { task: "set_value", target: "书房空调" });
-    expect(draft.actions).toHaveLength(1); expect(draft.actions[0].value).toBe(24);
+    expect(draft.actions).toHaveLength(1); expect(draft.actions[0].value).toEqual({ operation: "set_temperature", argument: 24 });
   });
 
   it("performs no write while querying a sensor", () => {
@@ -229,11 +235,11 @@ describe("D1 semantic contract v3", () => {
     expect(draft.actions).toEqual([]); expect(draft.summary).toContain("整体开关能力不明确");
   });
 
-  it("distinguishes an available HA action from unsupported sandbox execution", () => {
+  it("describes confirmed single-feeding separately from arbitrary HA button execution", () => {
     const home = createD1DemoHome(); const seed = home.things.find(t => t.id === "living_tv").capabilities[0];
     home.things.push({ id: "feeder", name: "书房猫粮机", type: "feeder", spaceId: "study", capabilities: [{ ...structuredClone(seed), id: "feed", name: "定量出粮按钮", kind: "action", binding: { provider: "home_assistant", domain: "button", entityId: "button.demo_feed" } }] });
     const { draft } = compile("书房猫粮机如何控制", { home, task: "capability_query", target: "书房猫粮机" });
-    expect(draft.actions).toEqual([]); expect(draft.summary).toContain("定量出粮按钮"); expect(draft.summary).toContain("当前沙盒还不能执行");
+    expect(draft.actions).toEqual([]); expect(draft.summary).toContain("投喂一次"); expect(draft.summary).toContain("需确认");
     expect(draft.summary).not.toContain("只有状态读取");
   });
 

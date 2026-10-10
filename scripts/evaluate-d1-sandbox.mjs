@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { gzipSync } from "node:zlib";
 import { createD1Client } from "../src/d1Client.js";
 import { createSandboxService } from "../src/sandbox/sandboxService.js";
 import { prepareHaHouse } from "../src/sandbox/haHouse.js";
@@ -151,7 +152,8 @@ try {
   report.totals = { passed: report.cases.filter(c => c.passed).length, failed: report.cases.filter(c => !c.passed).length };
   const timings = report.cases.map(c => c.elapsedMs).sort((a, b) => a - b);
   report.latency = { medianMs: timings[Math.floor(timings.length / 2)], p95Ms: timings[Math.ceil(timings.length * 0.95) - 1] };
-  writeFileSync(resolve(directory, "semantic-v3-qa.local.json"), `${JSON.stringify({ report, details }, null, 2)}\n`);
+  writeFileSync(resolve(directory, "semantic-v3-summary.local.json"), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(resolve(directory, "semantic-v3-qa.local.json.gz"), gzipSync(JSON.stringify({ report, details })));
   console.log(JSON.stringify(report.totals));
   if (!report.passed) process.exitCode = 1;
 }

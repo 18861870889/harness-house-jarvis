@@ -1,10 +1,10 @@
 {
-  "verifiedDate": "2026-10-09",
-  "runAt": "2026-10-09T13:45:04.418Z",
+  "verifiedDate": "2026-10-10",
+  "runAt": "2026-10-10T02:48:36.708Z",
   "suite": "d1-semantic-v3-house",
   "stage": "alpha-simulation-only",
   "decisionVersion": "v3",
-  "contractVersion": "3.0",
+  "contractVersion": "3.1",
   "model": "d1-3b-q4",
   "source": "existing-local-house-cache",
   "nativeD1Regression": {
@@ -22,8 +22,8 @@
     ],
     "timing": {
       "unit": "scenario-group wall-clock milliseconds",
-      "medianMs": 138,
-      "p95Ms": 630,
+      "medianMs": 202,
+      "p95Ms": 726,
       "sequenceGroupsContainMultipleTurns": true,
       "isPerTurnModelOrUiLatency": false,
       "isSla": false
@@ -31,13 +31,13 @@
     "isIndependentBlindAccuracyEvaluation": false
   },
   "unitAndIntegration": {
-    "passed": 530,
+    "passed": 624,
     "skipped": 3,
     "skippedReason": "online tests are opt-in"
   },
   "browserRegression": {
     "capturedHouseGroupsPassed": 11,
-    "syntheticHouseGroupsPassed": 11,
+    "extendedSyntheticHouseGroupsPassed": 15,
     "viewports": [
       { "width": 1440, "height": 1000 },
       { "width": 768, "height": 1024 },
@@ -59,7 +59,8 @@
   },
   "knownLimits": [
     "No live HA or real-device release validation.",
-    "Counts beyond one require clarification; complex slots and action-only device skills remain incomplete.",
+    "Counts beyond one require clarification; complex slots, specified media content and custom feeding amounts remain incomplete.",
+    "Device primitive coverage is verified separately in d1-devices-v3.1-qa.json; missing original-house interfaces remain blocked.",
     "Default lamp selection is deterministic, not learned personal preference.",
     "Model scores are not calibrated accuracy and there is no hard whole-turn 2-second SLA.",
     "No measured room comfort, real resident localization or microphone hardware validation.",

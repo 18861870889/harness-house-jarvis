@@ -1,6 +1,8 @@
 import { createHcmHome } from "../hcm.js";
 import { createProviderCommand, assertAuthorizedProviderExecution } from "./providerAdapterSdk.js";
 import { simulateHcmServiceCall } from "../homeAssistantServiceSimulator.js";
+import { capabilityAccess } from "../capabilityAuthorization.js";
+import { deviceOperationService } from "../deviceOperations.js";
 
 export function createD1DemoHome() {
   const control = (id, name, domain, valueType = "boolean", state = false, extra = {}) => ({
@@ -85,16 +87,31 @@ export function createD1DemoAdapter({ home = createD1DemoHome() } = {}) {
       const capability = selection?.capabilityId ? thing?.capabilities.find(c => c.id === selection.capabilityId && c.binding?.entityId === command.target.id)
         : thing?.capabilities.find(c => c.binding?.entityId === command.target.id);
       if (!capability) throw new Error("Unknown demo entity");
-      if (!["control", "action"].includes(capability.kind) || !capability.policy?.autoExecutable || capability.policy.risk !== "low" || capability.policy.confirmation !== "never" || thing.online === false) throw new Error("simulation_policy_blocked");
+      const access = capabilityAccess(capability);
+      if (!(access === "execute" || access === "confirm" && authorization.confirmed === true) || thing.online === false) throw new Error("simulation_policy_blocked");
+      if (selection?.value && typeof selection.value === "object") {
+        if (selection.value.operation === "feed" && authorization.confirmed !== true) throw new Error("simulation_confirmation_required");
+        const expected = deviceOperationService(capability, selection.value);
+        if (!expected || `${expected.domain}.${expected.service}` !== command.operation || JSON.stringify(expected.serviceData) !== JSON.stringify(command.payload)) throw new Error("simulation_operation_mismatch");
+      }
       const payload = command.payload;
+      const auxiliary = ["oscillate", "volume_set", "volume_mute", "volume_up", "volume_down"].includes(service);
       const next = service === "turn_on" ? payload.brightness_pct ?? payload.percentage ?? true
         : ["turn_off", "media_pause", "media_stop"].includes(service) ? false
           : ["media_play", "press"].includes(service) ? true
           : service === "open_cover" ? 100 : service === "close_cover" ? 0
-            : payload.temperature ?? payload.position ?? payload.percentage;
+            : service === "oscillate" ? payload.oscillating : service === "volume_mute" ? payload.is_volume_muted
+              : service === "volume_set" ? payload.volume_level
+                : ["volume_up", "volume_down"].includes(service) ? capability.state ?? null
+                  : service === "stop_cover" ? capability.binding.currentPosition ?? capability.state
+                  : ["start", "stop", "return_to_base"].includes(service) ? service === "start" ? "cleaning" : service === "return_to_base" ? "returning" : "idle"
+                    : payload.temperature ?? payload.position ?? payload.percentage;
       if (next === undefined) throw new Error(`Unsupported demo service ${service}`);
-      capability.state = next;
-      const raw = service === "media_pause" ? "paused" : service === "media_stop" ? "idle" : service === "media_play" ? "playing"
+      const oldRaw = entityStates.get(command.target.id) ?? "unknown";
+      if (!auxiliary) capability.state = next;
+      const raw = auxiliary ? oldRaw
+        : service === "media_pause" ? "paused" : service === "media_stop" ? "idle" : service === "media_play" ? "playing"
+          : domain === "vacuum" ? next
         : domain === "cover" ? next === 0 ? "closed" : "open"
           : domain === "fan" && typeof next === "number" ? next === 0 ? "off" : "on"
           : service === "set_temperature" ? entityStates.get(command.target.id) ?? "off" : next === false ? "off" : "on";
@@ -102,6 +119,18 @@ export function createD1DemoAdapter({ home = createD1DemoHome() } = {}) {
       capability.binding.currentState = raw;
       if (payload.temperature !== undefined) capability.binding.temperature = payload.temperature;
       if (domain === "cover" && typeof next === "number") capability.binding.currentPosition = next;
+      if (payload.percentage !== undefined) capability.binding.percentage = payload.percentage;
+      if (payload.oscillating !== undefined) capability.binding.oscillating = payload.oscillating;
+      if (payload.volume_level !== undefined) capability.binding.volumeLevel = payload.volume_level;
+      if (payload.is_volume_muted !== undefined) capability.binding.volumeMuted = payload.is_volume_muted;
+      if (["volume_up", "volume_down"].includes(service) && Number.isFinite(capability.binding.volumeLevel)) capability.binding.volumeLevel = Math.min(1, Math.max(0, capability.binding.volumeLevel + (service === "volume_up" ? 0.05 : -0.05)));
+      if (domain === "button") {
+        capability.binding.pressCount = (capability.binding.pressCount ?? 0) + 1;
+        const operation = selection?.value?.operation;
+        thing.simulationState = { ...thing.simulationState, lastOperation: operation, buttonPresses: (thing.simulationState?.buttonPresses ?? 0) + 1 };
+        if (["power_on", "power_off", "media_play"].includes(operation)) thing.simulationState.value = operation === "power_off" ? "off" : operation === "media_play" ? "playing" : "on";
+        if (operation === "feed") thing.simulationState.feedCount = (thing.simulationState.feedCount ?? 0) + 1;
+      }
       if (payload.brightness_pct !== undefined) {
         const powers = thing.capabilities.filter(item => item.binding?.domain === "light" && item.valueType === "boolean");
         const sameEntity = powers.filter(item => item.binding.entityId === command.target.id);
@@ -112,7 +141,11 @@ export function createD1DemoAdapter({ home = createD1DemoHome() } = {}) {
     async readState(targetId) {
       const capability = state.things.flatMap((thing) => thing.capabilities).find((item) => item.binding?.entityId === targetId);
       if (!capability) throw new Error("Unknown demo state");
-      return { state: entityStates.get(targetId) ?? "unknown", value: capability.state };
+      return { state: entityStates.get(targetId) ?? "unknown", value: capability.state, attributes: {
+        temperature: capability.binding.temperature, current_position: capability.binding.currentPosition,
+        percentage: capability.binding.percentage, oscillating: capability.binding.oscillating,
+        volume_level: capability.binding.volumeLevel, is_volume_muted: capability.binding.volumeMuted,
+      } };
     },
   };
 }

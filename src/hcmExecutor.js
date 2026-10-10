@@ -1,9 +1,10 @@
-import { CAPABILITY_KINDS, POLICY_LEVELS } from "./hcm.js";
 import { mediaPlayerServiceForBoolean } from "./homeAssistantServiceSupport.js";
+import { actionIsConfirmed, capabilityAccess } from "./capabilityAuthorization.js";
+import { deviceOperationService } from "./deviceOperations.js";
 
-const EXECUTABLE_DOMAINS = new Set(["light", "switch", "fan", "cover", "climate", "media_player", "button"]);
+const EXECUTABLE_DOMAINS = new Set(["light", "switch", "fan", "cover", "climate", "media_player", "button", "vacuum"]);
 
-export function validateHcmAction(action, home) {
+export function validateHcmAction(action, home, { confirmedActions = [] } = {}) {
   const thing = home?.things?.find((item) => item.id === action?.thingId || item.id === action?.device_id);
   if (!thing) return rejected(action, "unknown_thing", `Unknown HCM thing ${action?.thingId ?? action?.device_id ?? ""}`);
 
@@ -11,7 +12,9 @@ export function validateHcmAction(action, home) {
   const capability = thing.capabilities.find((item) => item.id === capabilityId);
   if (!capability) return rejected(action, "unknown_capability", `${thing.name} does not expose ${capabilityId}`);
 
-  if (!isAutoExecutable(capability)) {
+  const confirmed = actionIsConfirmed(action, confirmedActions);
+  if (action.value?.operation === "feed" && !confirmed) return rejected(action, "confirmation_required", "Single feeding requires exact action confirmation");
+  if (!isAutoExecutable(capability) && !(confirmed && capabilityAccess(capability) === "confirm")) {
     return rejected(action, "policy_blocked", `${thing.name} ${capability.name} is not auto executable`);
   }
 
@@ -52,17 +55,18 @@ export function validateHcmAction(action, home) {
       targetId: providerTargetId,
       providerId,
       domain,
+      ...(confirmed ? { confirmationGranted: true } : {}),
     },
     serviceCall,
   };
 }
 
-export function buildHcmExecutionPlan(actions, home) {
+export function buildHcmExecutionPlan(actions, home, options) {
   const accepted = [];
   const rejectedActions = [];
 
   for (const action of actions ?? []) {
-    const result = validateHcmAction(action, home);
+    const result = validateHcmAction(action, home, options);
     if (result.ok) accepted.push(result);
     else rejectedActions.push(result);
   }
@@ -80,6 +84,7 @@ export function mapHcmActionToHomeAssistantService({ capability, value }) {
   if (!domain || !entityId) return null;
 
   const serviceData = { entity_id: entityId };
+  if (value && typeof value === "object") return deviceOperationService(capability, value);
 
   if (domain === "button") {
     if (value === false) return null;
@@ -118,13 +123,11 @@ export function mapHcmActionToHomeAssistantService({ capability, value }) {
 }
 
 function isAutoExecutable(capability) {
-  if (![CAPABILITY_KINDS.CONTROL, CAPABILITY_KINDS.ACTION].includes(capability.kind)) return false;
-  if (!capability.policy?.autoExecutable) return false;
-  if (capability.policy.risk !== POLICY_LEVELS.LOW) return false;
-  return capability.policy.confirmation === "never";
+  return capabilityAccess(capability) === "execute";
 }
 
 function normalizeActionValue(value, capability) {
+  if (value && typeof value === "object") return value;
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (trimmed === "true") return true;

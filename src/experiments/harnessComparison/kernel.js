@@ -111,6 +111,7 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
           label: pending.proposal?.label ?? pending.question ?? pending.input,
           roomIds: pending.proposal?.scope?.roomIds ?? pending.roomIds ?? [],
           actions: pending.proposal?.actions, goal: pending.proposal?.goal,
+          originRoomId: pending.originRoomId,
         };
       }
       const enriched = { classify: (options) => client.classify({ ...options, signal }), choose: async (options) => {
@@ -123,7 +124,7 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
       } };
       const draft = await (decisionVersion === "v3" ? decideWithD1V3 : decisionVersion === "v2" ? decideWithD1V2 : decideWithD1)({ input, home, conversation, client: enriched });
       signal?.throwIfAborted();
-      const decision = { draft, home, input };
+      const decision = { draft, home, input, originRoomId: originRoom && freshOrigin ? originRoom.id : null };
       journal.prepare(request.commandId, decision);
       await lifecycle?.("after_prepare");
       return decision;
@@ -133,21 +134,21 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
       await beforeExecute?.(adapter);
       const home = await adapter.discoverHcmHome();
       if (JSON.stringify(home) !== JSON.stringify(decision.home)) throw new Error("home_changed_replan_required");
-      const plan = normalizeHcmPlannerDraft(decision.input, decision.draft, home, { strictSelection: true });
+      const plan = normalizeHcmPlannerDraft(decision.input, decision.draft, home, { strictSelection: true, confirmedActions: decision.draft.confirmedActions });
       if (decisionVersion === "v3" && plan.stateQuery?.thingId) {
-        const device = compileHcmForPlanner(home, { limit: 10000 }).find(d => d.id === plan.stateQuery.thingId);
+        const device = compileHcmForPlanner(home, { limit: 10000, includeConfirmable: true }).find(d => d.id === plan.stateQuery.thingId);
         const power = device?.capabilities.find(c => c.access === "execute" && c.valueType === "boolean");
         if (device?.logicalAsset && device.type === "light" && typeof power?.state === "boolean") plan.stateQuery.summary = `${device.name}的控制回路已${power.state ? "开启" : "关闭"}。`;
       }
       if (decisionVersion === "v3" && !plan.actions.length && decision.draft.intent_frame.decision.mode !== "ask_clarification") {
         const frame = decision.draft.semanticFrame;
-        const targets = compileHcmForPlanner(home, { limit: 10000 }).filter(d => (frame.resolvedTargetIds ?? frame.targetIds).includes(d.id));
+        const targets = compileHcmForPlanner(home, { limit: 10000, includeConfirmable: true }).filter(d => (frame.resolvedTargetIds ?? frame.targetIds).includes(d.id));
         if (targets.length) plan.contextFocus = { targets: targets.map(d => ({ id: d.id, name: d.name, roomId: d.roomId })), rooms: home.spaces.filter(r => targets.some(d => d.roomId === r.id)).map(r => ({ id: r.id, name: r.name })) };
       }
       let status = decision.draft.intent_frame.decision.mode === "ask_clarification" ? "needs_clarification" : "answered";
       let results = [];
       if (plan.actions.length) {
-        const execution = buildHcmExecutionPlan(plan.actions, home);
+        const execution = buildHcmExecutionPlan(plan.actions, home, { confirmedActions: plan.actions.filter(a => a.confirmationGranted) });
         if (execution.rejected.length || execution.accepted.length !== plan.actions.length) throw new Error("hcm_execution_rejected");
         const simulation = await simulateProviderExecutionPlan({ adapter, accepted: execution.accepted, home });
         if (!simulation.ok) throw new Error("simulation_rejected");
@@ -183,7 +184,7 @@ export function createKernel({ directory, client, now = Date.now, terminalRooms 
         goalTask = { ...goalTask, userAssessment: "improved", evidence: "explicit_user_feedback", updatedAt: now() };
         goalProgress = { ...goalTask, status: "improved_by_user" };
       } else if (status === "executed") goalTask = null;
-      const next = { turns: [...turns, turn].slice(-6), updatedAt: now(), revision: state.revision ?? 0, goalTask, pending: status === "needs_clarification" ? { commandId: request.commandId, input: decision.input, question: decision.draft.summary, roomIds: decision.draft.d1.scope?.roomIds ?? [], createdAt: now(), ...(decision.draft.proposal ? { proposal: decision.draft.proposal } : {}) } : null };
+      const next = { turns: [...turns, turn].slice(-6), updatedAt: now(), revision: state.revision ?? 0, goalTask, pending: status === "needs_clarification" ? { commandId: request.commandId, input: decision.input, question: decision.draft.summary, roomIds: decision.draft.d1.scope?.roomIds ?? [], originRoomId: decision.originRoomId, createdAt: now(), ...(decision.draft.proposal ? { proposal: decision.draft.proposal } : {}) } : null };
       let summary = status === "answered" && plan.stateQuery?.summary ? plan.stateQuery.summary : decision.draft.summary;
       if (status === "dry_run") summary = `模拟预演：${summary}。设备未实际执行。`;
       if (goalProgress?.status === "awaiting_user_feedback") {

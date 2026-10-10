@@ -7,9 +7,20 @@ describe("home assistant catalog mapper", () => {
       areas: [{ area_id: "study", name: "书房" }],
       devices: [{ id: "ac", area_id: "study", name: "书房空调", identifiers: [["xiaomi_home", "demo_ac"]] }],
       entities: [{ device_id: "ac", entity_id: "climate.demo_ac", original_name: "温度", platform: "xiaomi_home" }],
-      states: [{ entity_id: "climate.demo_ac", state: "cool", attributes: { min_temp: 18, max_temp: 28, target_temp_step: 0.5 } }],
+      states: [{ entity_id: "climate.demo_ac", state: "cool", attributes: { min_temp: 18, max_temp: 28, target_temp_step: 0.5, temperature: 24, current_temperature: 25, supported_features: 393 } }],
     });
     expect(home.things[0].capabilities[0].evidence.constraints).toMatchObject({ min: 18, max: 28, step: 0.5 });
+    expect(home.things[0].capabilities[0].binding).toMatchObject({ min: 18, max: 28, step: 0.5, temperature: 24, currentTemperature: 25, supportedFeatures: 393 });
+  });
+  it("retains numeric and auxiliary observations for fan, cover and media", () => {
+    const attributes = { fan: { percentage: 50, percentage_step: 25, oscillating: true }, cover: { current_position: 70 }, media_player: { volume_level: 0.4, is_volume_muted: false } };
+    const home = mapHomeAssistantGraphToHcm({ areas: [], devices: Object.keys(attributes).map(domain => ({ id: domain, name: domain, identifiers: [["xiaomi_home", domain]] })),
+      entities: Object.keys(attributes).map(domain => ({ device_id: domain, entity_id: `${domain}.fixture`, original_name: domain, platform: "xiaomi_home" })),
+      states: Object.entries(attributes).map(([domain, attrs]) => ({ entity_id: `${domain}.fixture`, state: "on", attributes: attrs })) });
+    const binding = domain => home.things.flatMap(t => t.capabilities).find(c => c.binding.domain === domain).binding;
+    expect(binding("fan")).toMatchObject({ percentage: 50, percentageStep: 25, oscillating: true });
+    expect(binding("cover").currentPosition).toBe(70);
+    expect(binding("media_player")).toMatchObject({ volumeLevel: 0.4, volumeMuted: false });
   });
   it("maps Home Assistant registries into a device-first HCM catalog", () => {
     const hcm = mapHomeAssistantGraphToHcm({

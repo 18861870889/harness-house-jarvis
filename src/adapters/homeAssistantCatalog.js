@@ -257,6 +257,7 @@ function capabilityId(entity) {
 }
 
 function createBinding(entity, domain, state) {
+  const attributes = state?.attributes ?? {};
   return {
     provider: "home_assistant",
     entityId: entity.entity_id,
@@ -266,6 +267,19 @@ function createBinding(entity, domain, state) {
     supportedFeatures:
       typeof state?.attributes?.supported_features === "number" ? state.attributes.supported_features : undefined,
     currentState: state?.state,
+    min: attributes.min ?? attributes.min_temp,
+    max: attributes.max ?? attributes.max_temp,
+    step: attributes.step ?? attributes.target_temp_step,
+    temperature: attributes.temperature,
+    currentTemperature: attributes.current_temperature,
+    currentPosition: attributes.current_position,
+    percentage: attributes.percentage,
+    percentageStep: attributes.percentage_step,
+    oscillating: attributes.oscillating,
+    volumeLevel: attributes.volume_level,
+    volumeMuted: attributes.is_volume_muted,
+    hvacModes: attributes.hvac_modes,
+    options: attributes.options,
   };
 }
 

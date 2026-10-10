@@ -4,15 +4,19 @@ export const MEDIA_FEATURES = {
   TURN_OFF: 256,
   STOP: 4096,
   PLAY: 16384,
+  VOLUME_SET: 4,
+  VOLUME_MUTE: 8,
+  VOLUME_STEP: 1024,
 };
 
 export const DOMAIN_SERVICES = {
   light: new Set(["turn_on", "turn_off"]),
   switch: new Set(["turn_on", "turn_off"]),
-  fan: new Set(["turn_on", "turn_off", "set_percentage"]),
-  cover: new Set(["open_cover", "close_cover", "set_cover_position"]),
+  fan: new Set(["turn_on", "turn_off", "set_percentage", "oscillate"]),
+  cover: new Set(["open_cover", "close_cover", "set_cover_position", "stop_cover"]),
   climate: new Set(["turn_on", "turn_off", "set_temperature"]),
   button: new Set(["press"]),
+  vacuum: new Set(["start", "stop", "return_to_base"]),
 };
 
 export function isHomeAssistantServiceSupported(serviceCall, capability) {
@@ -47,6 +51,10 @@ function isMediaPlayerServiceSupported(service, capability) {
     media_play: MEDIA_FEATURES.PLAY,
     turn_on: MEDIA_FEATURES.TURN_ON,
     turn_off: MEDIA_FEATURES.TURN_OFF,
+    volume_set: MEDIA_FEATURES.VOLUME_SET,
+    volume_mute: MEDIA_FEATURES.VOLUME_MUTE,
+    volume_up: MEDIA_FEATURES.VOLUME_STEP,
+    volume_down: MEDIA_FEATURES.VOLUME_STEP,
   };
   const required = featureByService[service];
   if (!required) {

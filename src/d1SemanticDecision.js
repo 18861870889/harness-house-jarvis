@@ -1,23 +1,25 @@
 import { compileHcmForPlanner } from "./hcmPlanner.js";
 import { findExplicitRoomIds, resolveControlAsset } from "./hcmControlGraph.js";
+import { deviceOperations, deviceOperationSummary } from "./deviceOperations.js";
+import { compileDeviceDecision } from "./d1DeviceDecision.js";
 
-export const D1_SEMANTIC_CONTRACT_VERSION = "3.0";
+export const D1_SEMANTIC_CONTRACT_VERSION = "3.1";
 const TASKS = {
   power_on: "现在要求打开设备或打开灯、窗帘",
   power_off: "现在要求关闭设备或关灯、关闭窗帘",
   mixed_control: "现在明确要求一些设备打开、另一些设备关闭",
-  set_value: "现在设置一个明确数值，如温度、亮度、风速或位置",
+  set_value: "设置明确数值，例如温度24度、风速75%、音量25%、窗帘开到30%；不是整体电源开关",
   brighter: "觉得太暗、不够亮，要求增加照明",
   dimmer: "觉得太亮、刺眼，要求减少照明",
-  warmer: "觉得冷或太凉，希望环境暖一些",
-  cooler: "觉得热或闷，希望环境凉一些",
+  warmer: "只表达环境冷、太凉，希望暖一些，未指定具体设备动作或数值",
+  cooler: "只表达环境热、闷，希望凉一些，未指定具体设备动作或数值；风扇摇头不是此意图",
   state_query: "只查询设备、传感器当前状态或开关情况，不改变设备",
   capability_query: "咨询怎么控制、支持什么功能或操作方法，不要求执行",
   location_query: "询问自己在哪个房间或是否在某个房间，不控制设备",
   feedback: "评价刚才操作的效果，如不合适、好多了、关闭得太多、满意了",
   confirm: "仅明确同意执行上一轮待确认方案，没有添加新要求",
   no_action: "取消、拒绝、禁止操作、未来偏好或闲聊，本轮不执行",
-  media_stop: "要求停止或暂停播放音乐，不是切断设备电源",
+  device_action: "具体设备动作，不是整体电源开关或数值设定：播放/暂停/停止音乐、音量增减、静音、换频道、风扇摇头、停止窗帘移动、升降、投喂、清扫、回充",
   unclear: "无法确定当前要求，需要具体反问",
 };
 const EXTENTS = {
@@ -38,7 +40,7 @@ const powerOf = device => {
 };
 const actionFor = (device, capability, value) => ({ device_id: device.id, capability: capability.id, value, reason: device.name });
 const localName = (device, home) => device.name.replace(home.spaces.find(r => r.id === device.roomId)?.name ?? "", "");
-const WRITE_TASKS = new Set(["power_on", "power_off", "mixed_control", "set_value", "brighter", "dimmer", "warmer", "cooler", "media_stop", "confirm"]);
+const WRITE_TASKS = new Set(["power_on", "power_off", "mixed_control", "set_value", "brighter", "dimmer", "warmer", "cooler", "device_action", "confirm"]);
 const NEGATIVE = /不要|不想|不需要|别|不许|不用|先不|暂时不|(?:不|勿)(?:开|关|动|操作)/;
 const OPEN = /打开|开启|开(?=下|一下|一盏|一个|灯|射灯|吊灯|窗帘|电视|空调|风扇)/;
 const CLOSE = /关闭|关掉|关(?=下|一下|一盏|一个|灯|射灯|吊灯|窗帘|电视|空调|风扇)/;
@@ -71,14 +73,14 @@ function targetSets(devices, home) {
 export function buildD1SemanticRequest({ input, home, conversation = {} }) {
   const explicit = findExplicitRoomIds(input, home);
   const referential = /它|(?:这个|那个)(?!房间|屋)|那盏|这盏|刚才那|刚刚那/.test(input);
-  const catalog = compileHcmForPlanner(home, { limit: 10000 });
+  const catalog = compileHcmForPlanner(home, { limit: 10000, includeConfirmable: true });
   const focusIds = new Set((conversation.focusedTargets ?? []).map(t => t.id));
   const location = conversation.currentRoom;
   const rooms = explicit.length ? explicit : referential && focusIds.size
     ? [...new Set(catalog.filter(d => focusIds.has(d.id)).map(d => d.roomId))]
     : location?.source === "configured_terminal" ? [location.id]
       : !conversation.uncertainOrigin ? (conversation.focusedRooms ?? []).map(r => r.id) : [];
-  const named = catalog.filter(d => [d.name, ...(d.aliases ?? [])].some(name => name.length >= 2 && input.includes(name)
+  const named = catalog.filter(d => (!explicit.length || explicit.includes(d.roomId)) && [d.name, ...(d.aliases ?? [])].some(name => name.length >= 2 && input.includes(name)
     && (home.spaces.some(r => name.includes(r.name)) || catalog.filter(other => [other.name, ...(other.aliases ?? [])].includes(name)).length === 1)));
   let devices = catalog.filter(d => rooms.includes(d.roomId) || named.includes(d));
   if (referential && focusIds.size) devices = catalog.filter(d => focusIds.has(d.id) && (!explicit.length || explicit.includes(d.roomId)));
@@ -93,7 +95,11 @@ export function buildD1SemanticRequest({ input, home, conversation = {} }) {
   const scope = { source: explicit.length ? "explicit_room" : referential ? "conversation_target" : location ? "terminal" : rooms.length ? "conversation_room" : "ambiguous_origin", roomIds: rooms, targetIds: devices.map(d => d.id) };
   const goal = conversation.activeGoalTask && rooms.includes(conversation.activeGoalTask.roomId) ? conversation.activeGoalTask : null;
   const confirmationOnly = /^(可以|好|好的|确认|执行|执行吧|继续|继续吧|没问题|同意|是的|关吧|打开吧)[。！!]?$/u.test(input.trim());
-  const pending = conversation.pendingDecision && conversation.pendingDecision.roomIds.every(id => rooms.includes(id)) ? conversation.pendingDecision : null;
+  const previous = conversation.pendingDecision;
+  const sameOrigin = previous?.originRoomId !== undefined ? previous.originRoomId && !conversation.uncertainOrigin && location?.source === "configured_terminal" && previous.originRoomId === location.id
+    : previous?.roomIds.every(id => rooms.includes(id));
+  const pending = sameOrigin ? previous : null;
+  if (pending && confirmationOnly) Object.assign(scope, { source: "confirmed_proposal", roomIds: pending.roomIds, targetIds: pending.actions?.map(a => a.device_id) ?? [] });
   const clauses = input.split(/[，,。；;]|但是|但|不过|(?=不要|不想|不需要|别|不许|不用|先不|暂时不|(?:不|勿)(?:开|关|动|操作))/).filter(c => c.trim());
   const positive = clauses.filter(c => !NEGATIVE.test(c)).join("；");
   const denied = clauses.filter(c => NEGATIVE.test(c));
@@ -103,8 +109,19 @@ export function buildD1SemanticRequest({ input, home, conversation = {} }) {
   }));
   // Literal action words constrain the schema, not a locally executed intent.
   const allowedTasks = { ...TASKS };
+  const namedDevices = catalogueMatches(positive, devices, home);
+  const namedOperations = namedDevices.flatMap(device => deviceOperations(device, home));
+  if (namedDevices.length === 1 && namedDevices[0].type !== "light") for (const op of ["power_on", "power_off"]) {
+    if (namedOperations.some(o => o.operation === op)) allowedTasks[op] = `现在要求${op === "power_on" ? "打开" : "关闭"}${namedDevices[0].name}${namedDevices[0].type === "curtain" ? "" : "的电源"}`;
+  }
+  const specificOperations = [...new Set(namedOperations.filter(op => !["power_on", "power_off", "set_temperature", "set_position", "set_speed", "set_volume"].includes(op.operation)).map(op => op.label))];
+  if (specificOperations.length && specificOperations.length <= 15) {
+    allowedTasks.device_action = `要求目标设备的具体动作：${specificOperations.join("；")}${namedDevices.some(d => ["tv", "media_player"].includes(d.type)) ? "；暂停/停止播放音乐（即使接口未接入，意图仍是设备动作）" : ""}。不是电源开关、数值设定、环境冷热描述或取消待确认方案。`;
+    allowedTasks.no_action += "；停止播放或停止移动仍是设备动作，不是取消待确认方案。";
+  }
   const retainOne = /(?:只|仅)(?:留|保留)(?:一|1)(?:个|盏)/.test(positive);
-  const literalDirection = retainOne ? null : OPEN.test(positive) && !CLOSE.test(positive) ? "on" : CLOSE.test(positive) && !OPEN.test(positive) ? "off" : null;
+  const specificAction = /播放|音乐|摇头|升起|降下|升降|投喂|喂食|出粮|清扫|回充|音量|风速|温度|静音|移动/.test(positive);
+  const literalDirection = retainOne || specificAction ? null : OPEN.test(positive) && !CLOSE.test(positive) ? "on" : CLOSE.test(positive) && !OPEN.test(positive) ? "off" : null;
   if (literalDirection === "on") for (const id of WRITE_TASKS) if (id !== "power_on" && !(id === "set_value" && /\d+\s*(度|℃|%|％)/.test(positive))) delete allowedTasks[id];
   if (literalDirection === "off") for (const id of WRITE_TASKS) if (id !== "power_off") delete allowedTasks[id];
   const methodQuestion = /怎么|如何|支持|有哪些功能|能做什么/.test(input);
@@ -113,6 +130,9 @@ export function buildD1SemanticRequest({ input, home, conversation = {} }) {
   if (methodQuestion || stateQuestion || feedbackOnly || denied.length && !positive.trim()) for (const id of WRITE_TASKS) delete allowedTasks[id];
   if (!confirmationOnly) delete allowedTasks.confirm;
   else { allowedTasks.confirm = TASKS.confirm; for (const id of WRITE_TASKS) if (id !== "confirm") delete allowedTasks[id]; }
+  if (/播放|音乐|摇头|升起|降下|升降|投喂|喂食|出粮|清扫|回充/.test(positive)) {
+    delete allowedTasks.power_on; delete allowedTasks.power_off; delete allowedTasks.mixed_control;
+  }
   const literalOne = /(?:一|1)(?:个|盏)/.test(positive);
   const literalOnly = retainOne || literalOne && /只|仅/.test(positive) && literalDirection !== "off";
   const extents = literalOne ? { [literalOnly ? "only_one" : "one"]: EXTENTS[literalOnly ? "only_one" : "one"], unclear: EXTENTS.unclear } : EXTENTS;
@@ -127,8 +147,11 @@ export function buildD1SemanticRequest({ input, home, conversation = {} }) {
     + (referential ? `上一轮明确目标：${(conversation.focusedTargets ?? []).map(t => t.name).join("、")}\n` : "")
     + (goal ? `本房间未完成的目标：${goal.desiredOutcome}，只供理解反馈，不能替代本轮要求\n` : "")
     + (pending && confirmationOnly ? `本轮仅回复上一轮方案。待确认方案：${pending.label.slice(0, 250)}\n` : "");
+  const taskInstructions = "只判断本轮原话的意图。旧目标和待确认方案不是本轮命令；新要求不是确认；询问位置不是控制房间；评价操作效果不是重复执行。"
+    + (/\d+\s*(?:度|℃|%|％)/.test(positive) ? "明确数值属于set_value，不是整体电源开关。" : "")
+    + (specificAction ? "摇头、静音、停止移动属于device_action，不是调温或电源开关；取消方案不等于停止设备。" : "");
   const questions = {
-    task: question("只判断本轮原话的意图。旧目标和待确认方案不是本轮命令；新要求不是确认；询问位置不是控制房间；评价操作效果不是重复执行。", allowedTasks),
+    task: question(taskInstructions, allowedTasks),
     extent: question("本轮原话要求的设备数量和范围是什么？一个与只留一个不同；设备类别如射灯不包含吊灯。没有明确数量或类别选default。", extents),
     feedback: question("本轮对刚才结果的评价是什么？没有评价选none。", { satisfied: "明确满意或合适，保持现状", improved: "改善了但未说已合适", dissatisfied: "不合适或操作太多，需要纠正", none: "不是效果反馈" }),
     target_form: question("本轮使用什么目标名称？例如灯是泛称；射灯、吊灯、床头灯都是具体名称或子类，即使目录中没有这个设备也不能扩大为所有灯。", { generic: "泛称灯、照明、空调等设备类型，没有指定具体名称或子类", named: "使用具体设备名称或子类，如射灯、吊灯、落地灯、床头灯", referential: "明确指代上一个目标，如它、刚才那盏", unclear: "本轮没有设备目标或目标表述无法判断" }),
@@ -141,7 +164,7 @@ function groundTargets(pack, home, task, answers) {
   let devices = pack.devices.filter(d => !pack.excludedIds.includes(d.id));
   const domain = ["brighter", "dimmer"].includes(task) ? ["light"] : ["warmer", "cooler"].includes(task) ? ["ac", "fan"] : null;
   if (domain) devices = devices.filter(d => domain.includes(d.type));
-  const nouns = { light: /灯|照明/, ac: /空调/, fan: /风扇/, curtain: /窗帘/, tv: /电视/, vacuum: /扫地|机器人/ };
+  const nouns = { light: /灯|照明/, ac: /空调/, fan: /风扇/, curtain: /窗帘|镜面纱|亚麻纱/, tv: /电视|音箱|音乐/, robot_vacuum: /扫地|机器人|清扫|回充/, pet_feeder: /猫粮机|喂食|投喂|出粮/, drying_rack: /晾衣杆|晾衣服/ };
   const types = Object.entries(nouns).filter(([, pattern]) => pattern.test(pack.positive)).map(([type]) => type);
   pack.requestedTypes = types;
   if (types.length) devices = devices.filter(d => types.includes(d.type));
@@ -174,7 +197,8 @@ function primary(devices) {
   return [...devices].sort((a, b) => Number(/吊灯|吸顶灯|主灯|主射灯/.test(b.name)) - Number(/吊灯|吸顶灯|主灯|主射灯/.test(a.name)) || a.id.localeCompare(b.id))[0];
 }
 
-function capabilitySummary(device, input = "") {
+function capabilitySummary(device, input = "", home) {
+  if (device.type !== "light") return deviceOperationSummary(device, deviceOperations(device, home));
   const capabilities = device.capabilities.filter(c => c.access === "execute");
   if (!capabilities.length) return `${device.name}目前接入的能力只有状态读取。`;
   if (capabilities.every(c => c.operation === "press")) return `${device.name}已接入${capabilities.map(c => c.name.replace(device.name, "")).join("、")}，但当前沙盒还不能执行这类动作。`;
@@ -192,13 +216,16 @@ export function compileD1SemanticDecision({ input, home, conversation = {}, pack
     if (!a || !Object.hasOwn(q.criteria, a.choice) || ![a.probability, a.margin].every(n => Number.isFinite(n) && n >= 0 && n <= 1)) throw new Error("invalid_semantic_decision");
   }
   const target = classification.target;
+  const operation = classification.deviceOperation;
+  if (operation && (operation.choice !== "unsupported" && !pack.deviceOperationChoices?.[operation.choice]
+    || ![operation.probability, operation.margin].every(n => Number.isFinite(n) && n >= 0 && n <= 1))) throw new Error("invalid_device_operation");
   if (target && (!pack.targetChoices?.[target.choice] || ![target.probability, target.margin].every(n => Number.isFinite(n) && n >= 0 && n <= 1))) throw new Error("invalid_semantic_target");
   if (pack.targetBinding && (pack.targetBinding.ids.some(id => !pack.devices.some(d => d.id === id)) || !["catalogue_literal", "conversation_target", "semantic_domain", "room_device_class"].includes(pack.targetBinding.source))) throw new Error("invalid_catalogue_binding");
   const targetIds = pack.targetBinding?.ids ?? (target && certain(target) ? pack.targetChoices[target.choice].ids : []);
   const selected = pack.devices.filter(d => targetIds.includes(d.id));
   const excluded = new Set(pack.excludedIds);
   const frame = { task, extent, targetIds: selected.map(d => d.id), excludedIds: [...excluded], scope: pack.scope, targetSource: pack.targetBinding?.source ?? "d1_choice" };
-  let mode = "answer", summary = "", actions = [], proposal, goal, goalFeedback, query;
+  let mode = "answer", summary = "", actions = [], proposal, goal, goalFeedback, query, confirmedActions;
   const ask = text => { mode = "ask_clarification"; summary = text; actions = []; };
   const hasMethodQuestion = /怎么|如何|支持|有哪些功能|能做什么/.test(input);
   if (hasMethodQuestion && !["capability_query", "state_query", "location_query", "no_action"].includes(task)) ask("你是在询问操作方法吗？我先不操作设备。");
@@ -217,8 +244,9 @@ export function compileD1SemanticDecision({ input, home, conversation = {}, pack
     if (!pack.pending?.actions?.length) ask("当前没有待确认的执行方案，请说明要操作什么。");
     else {
       actions = structuredClone(pack.pending.actions);
+      confirmedActions = structuredClone(actions);
       goal = pack.pending.goal;
-      summary = "";
+      summary = `已模拟执行：${pack.pending.label}。`;
       mode = "execute";
     }
   } else if (task === "feedback") {
@@ -238,15 +266,18 @@ export function compileD1SemanticDecision({ input, home, conversation = {}, pack
   } else if (pack.block) ask(pack.block);
   else if (pack.unsupportedCount && WRITE_TASKS.has(task)) ask("请具体指定要调整的设备；这次数量要求还不能可靠对应，我先不操作。");
   else if (!selected.length) {
-    const typeNames = { light: "灯具", ac: "空调", fan: "风扇", curtain: "窗帘", tv: "电视", vacuum: "扫地机器人" };
+    const typeNames = { light: "灯具", ac: "空调", fan: "风扇", curtain: "窗帘", tv: "电视或音箱", robot_vacuum: "扫地机器人", pet_feeder: "猫粮机", drying_rack: "晾衣杆" };
     if (pack.scope.roomIds.length && pack.requestedTypes?.length && !pack.retrievedIds.length) ask(`${pack.scope.roomIds.map(id => home.spaces.find(r => r.id === id)?.name).join("、")}没有已接入且可识别的${pack.requestedTypes.map(t => typeNames[t]).join("、")}。你指的是其他房间的设备吗？`);
     else ask(pack.scope.roomIds.length ? `你指的是${pack.devices.filter(d => d.type === "light").map(d => d.name).slice(0, 4).join("、") || "哪个设备"}中的哪一个？` : "你想操作哪个房间？当前位置还不确定。");
   }
   else if (["state_query", "capability_query"].includes(task)) {
     if (selected.length === 1) {
       if (task === "state_query") { query = { mode: "state", device_id: selected[0].id }; summary = `读取${selected[0].name}的状态。`; }
-      else summary = capabilitySummary(selected[0], input);
-    } else summary = selected.map(d => task === "state_query" ? `${d.name}：${powerOf(d)?.state === true ? "开启" : powerOf(d)?.state === false ? "关闭" : "状态未知"}` : capabilitySummary(d, input)).join("；") + "。";
+      else summary = capabilitySummary(selected[0], input, home);
+    } else summary = selected.map(d => task === "state_query" ? `${d.name}：${powerOf(d)?.state === true ? "开启" : powerOf(d)?.state === false ? "关闭" : "状态未知"}` : capabilitySummary(d, input, home)).join("；") + "。";
+  } else if (selected.some(d => d.type !== "light") && WRITE_TASKS.has(task)) {
+    const result = compileDeviceDecision({ input, home, selected, task, classification, pack, lightPower: powerOf });
+    ({ mode, summary, actions, proposal } = result);
   } else if (extent === "only_one" && ["power_on", "power_off", "mixed_control", "brighter", "dimmer"].includes(task)) {
     const writable = selected.filter(d => powerOf(d) && !excluded.has(d.id));
     if (!certain(answers.extent)) ask("你是希望最终只留一盏灯吗？我先不操作。");
@@ -322,7 +353,7 @@ export function compileD1SemanticDecision({ input, home, conversation = {}, pack
 
   // Semantic constraints authorize actions; a high model score alone never does.
   if (actions.some(a => excluded.has(a.device_id)) && task !== "confirm") throw new Error("semantic_exclusion_violation");
-  if (["power_on", "power_off"].includes(task) && extent !== "only_one" && actions.some(a => a.value !== (task === "power_on"))) throw new Error("semantic_direction_violation");
+  if (["power_on", "power_off"].includes(task) && extent !== "only_one" && actions.some(a => typeof a.value === "object" ? a.value.operation !== task : a.value !== (task === "power_on"))) throw new Error("semantic_direction_violation");
   if (extent === "one" && actions.length > 1) throw new Error("semantic_quantity_violation");
   if (["state_query", "capability_query", "location_query", "feedback", "no_action", "unclear"].includes(task) && actions.length) throw new Error("semantic_readonly_violation");
   if (mode === "execute") {
@@ -330,21 +361,21 @@ export function compileD1SemanticDecision({ input, home, conversation = {}, pack
     actions = actions.filter(a => {
       const device = pack.catalog.find(d => d.id === a.device_id);
       const capability = device?.capabilities.find(c => c.id === a.capability);
-      if (!capability || capability.access !== "execute") throw new Error("semantic_capability_violation");
-      return capability.state !== a.value;
+      if (!capability || !(capability.access === "execute" || confirmedActions && capability.access === "confirm")) throw new Error("semantic_capability_violation");
+      return typeof a.value === "object" || capability.operation === "press" || capability.state !== a.value;
     });
     if (!actions.length) { mode = "answer"; summary = "已经是你要求的状态，无需重复操作。"; }
     else summary ||= `已${actions.length === 1 ? (actions[0].value === true ? "打开" : actions[0].value === false ? "关闭" : "调整") + pack.catalog.find(d => d.id === actions[0].device_id).name : `调整${actions.length}个设备`}。`;
   }
   const intentType = task === "state_query" && selected.length === 1 ? "state_query" : actions.length ? actions.length > 1 ? "scene" : "device_control" : "unknown";
   return {
-    intent: input, intent_type: intentType, confidence: answers.task.probability, summary, actions, query, goal, goalFeedback, proposal,
+    intent: input, intent_type: intentType, confidence: answers.task.probability, summary, actions, query, goal, goalFeedback, proposal, confirmedActions,
     semanticFrame: frame,
     intent_frame: { intent_type: intentType, intent: input, confidence: answers.task.probability, goal, actions, query,
       decision: { mode, reason: summary }, ambiguity: { needs_clarification: mode === "ask_clarification" } },
     d1: { contractVersion: D1_SEMANTIC_CONTRACT_VERSION, selectedId: `semantic:${task}`, probability: answers.task.probability, margin: answers.task.margin,
       latencyMs: classification.latencyMs, usage: classification.usage, scope: pack.scope, candidateCount: Object.keys(pack.questions).length,
-      candidates: Object.entries(pack.questions.task.criteria).map(([id, label]) => ({ id, label })), fields: answers, target, targetBinding: pack.targetBinding, targetChoices: pack.targetChoices, operations: classification.operations, semanticFrame: frame, scopeBlock: pack.block, uncertain: !certain(answers.task) },
+      candidates: Object.entries(pack.questions.task.criteria).map(([id, label]) => ({ id, label })), fields: answers, target, targetBinding: pack.targetBinding, targetChoices: pack.targetChoices, operations: classification.operations, deviceOperation: classification.deviceOperation, deviceOperationChoices: pack.deviceOperationChoices, semanticFrame: frame, scopeBlock: pack.block, uncertain: !certain(answers.task) },
   };
 }
 
@@ -371,6 +402,29 @@ export async function decideWithD1V3(options) {
         const operations = await options.client.classify({ state: pack.state, questions: Object.fromEntries(selected.map((d, i) => [`d${i}`, question(`本轮要求${d.name}打开还是关闭？`, { on: `打开${d.name}`, off: `关闭${d.name}`, unclear: "没有明确要求，不操作" })])) });
         classification.operations = operations.answers;
         classification.latencyMs += operations.latencyMs;
+    }
+    const ids = binding?.ids ?? (classification.target && certain(classification.target) ? pack.targetChoices[classification.target.choice].ids : []);
+    const targets = devices.filter(d => ids.includes(d.id));
+    if (["device_action", "set_value"].includes(task) && targets.length === 1 && targets[0].type !== "light") {
+      let operationOptions = deviceOperations(targets[0], options.home);
+      if (task === "set_value") operationOptions = operationOptions.filter(o => ["set_temperature", "set_position", "set_speed", "set_volume"].includes(o.operation));
+      pack.deviceOperationChoices = Object.fromEntries(operationOptions.slice(0, 15).map((op, i) => [`op${i}`, op]));
+      if (operationOptions.length > 15) pack.deviceOperationChoices = {};
+      if (Object.keys(pack.deviceOperationChoices).length) {
+        const mediaTarget = ["tv", "media_player"].includes(targets[0].type);
+        const operationInstructions = mediaTarget
+          ? "只选择用户本轮要求的具体操作。暂停是暂停当前播放，停止是结束播放，二者都不是关电源；音量不是风速。接口不存在或操作不明确选unsupported，不换成别的操作。"
+          : "候选操作均是该设备已接入的接口。只选择用户本轮要求的动作；若本轮要求不在选项内、是在询问或未要求执行，选unsupported。不能用其他动作代替。";
+        // Target grounding already resolved location/history. They cannot redefine this action.
+        const result = await options.client.classify({ state: `本轮用户原话：${JSON.stringify(options.input)}\n已绑定的唯一设备：${targets[0].name}\n`, questions: {
+          operation: question(operationInstructions, {
+            ...Object.fromEntries(Object.entries(pack.deviceOperationChoices).map(([id, op]) => [id, op.label])),
+            unsupported: mediaTarget ? "没有对应接口或操作不明确，需要反问，不能执行其他动作" : "本轮未要求执行这些动作，或要求的动作不在选项内",
+          }),
+        } });
+        classification.deviceOperation = result.answers.operation;
+        classification.latencyMs += result.latencyMs;
+      }
     }
   }
   return compileD1SemanticDecision({ ...options, pack, classification });

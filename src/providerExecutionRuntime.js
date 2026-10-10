@@ -69,6 +69,7 @@ export async function executeSimulatedProviderPlan({ adapter, simulation, comman
         authorized: true,
         commandId,
         simulation: check,
+        confirmed: check.action?.confirmationGranted === true,
       });
       results.push({
         ok: true,
@@ -111,24 +112,28 @@ export async function verifyProviderExecutionResults({ adapter, results = [], wa
       continue;
     }
     const expected = expectedState(result.service);
-    if (!expected) {
+    const field = { "climate.set_temperature": "temperature", "cover.set_cover_position": "current_position", "fan.set_percentage": "percentage", "fan.oscillate": "oscillating", "media_player.volume_set": "volume_level", "media_player.volume_mute": "is_volume_muted" }[result.service];
+    const requestedField = { current_position: "position" }[field] ?? field;
+    const requested = field ? result.serviceData[requestedField] : undefined;
+    if (!expected && !field) {
       verified.push({ ...result, verification: { ok: true, code: "not_verifiable", message: "该服务暂无通用状态断言" } });
       continue;
     }
     try {
       let state = await adapter.readState(targetId);
-      if (!expected.includes(normalizeProviderState(state))) {
+      const matches = s => field ? s.attributes?.[field] === requested : expected.includes(normalizeProviderState(s));
+      if (!matches(state)) {
         await wait(150);
         state = await adapter.readState(targetId);
       }
-      const actual = normalizeProviderState(state);
-      const ok = expected.includes(actual);
+      const actual = field ? state.attributes?.[field] : normalizeProviderState(state);
+      const ok = matches(state);
       verified.push({
         ...result,
         verification: {
           ok,
           code: ok ? "state_converged" : "state_mismatch",
-          expected,
+          expected: field ? requested : expected,
           actual,
           targetId,
           message: ok ? "Provider 状态已收敛到目标值" : `Provider 回读状态 ${actual} 与目标不一致`,
@@ -167,6 +172,12 @@ function expectedState(service) {
   if (/\.off$/.test(service)) return ["off"];
   if (/\.open_cover$/.test(service)) return ["open", "opening"];
   if (/\.close_cover$/.test(service)) return ["closed", "closing"];
+  if (/\.media_play$/.test(service)) return ["playing"];
+  if (/\.media_pause$/.test(service)) return ["paused"];
+  if (/\.media_stop$/.test(service)) return ["idle"];
+  if (service === "vacuum.start") return ["cleaning"];
+  if (service === "vacuum.stop") return ["idle"];
+  if (service === "vacuum.return_to_base") return ["returning", "docked"];
   return null;
 }
 

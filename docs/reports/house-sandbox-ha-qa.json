@@ -1,13 +1,13 @@
 {
-  "verifiedDate": "2026-10-09",
+  "verifiedDate": "2026-10-10",
   "suite": "ha-backed-house-sandbox",
   "stage": "alpha-read-only-directory-and-simulation",
   "decisionVersion": "v3",
-  "semanticContractVersion": "3.0",
-  "unit": { "passed": 530, "skipped": 3 },
+  "semanticContractVersion": "3.1",
+  "unit": { "passed": 624, "skipped": 3 },
   "build": { "passed": true, "chunkSizeWarning": true },
   "capturedHouse": {
-    "runAt": "2026-10-09T13:55:33.041Z",
+    "runAt": "2026-10-10T02:47:22.672Z",
     "passed": true,
     "caseGroups": 11,
     "rooms": 12,
@@ -15,10 +15,11 @@
     "logicalAssets": 43,
     "sceneDevices": 61,
     "rapierRoomRoutesPassed": 12,
-    "d1SpotlightLatencyMs": 424,
+    "d1SpotlightLatencyMs": 128,
     "exactGangReadbackVerified": true
   },
   "syntheticHouse": {
+    "historicalV3Run": true,
     "runAt": "2026-10-09T13:58:49.328Z",
     "passed": true,
     "caseGroups": 11,
@@ -27,6 +28,19 @@
     "logicalAssets": 4,
     "sceneDevices": 13,
     "rapierRoomRoutesPassed": 8
+  },
+  "extendedSyntheticHouse": {
+    "runAt": "2026-10-10T02:48:01.447Z",
+    "passed": true,
+    "caseGroups": 15,
+    "rooms": 8,
+    "physicalDevices": 16,
+    "logicalAssets": 4,
+    "sceneDevices": 18,
+    "rapierRoomRoutesPassed": 8,
+    "climateAndCoverNumericReadback": true,
+    "mediaPauseAndRepeatableIrButtons": true,
+    "rackMotionAndConfirmedFeeding": true
   },
   "sampleAndVoiceRegression": {
     "historicalV2RunNotCurrentV3Acceptance": true,
@@ -75,7 +89,8 @@
     "Sensor movement, errors and multi-resident simulation are not implemented.",
     "Browser STT is not an offline speech guarantee; microphone hardware was not tested.",
     "The separate v3 native D1 regression passed 53/53 iterated groups, not a blind general-accuracy evaluation.",
-    "Complex counts, clarification slots and media/feeding action skills are not fully implemented.",
+    "Complex counts, clarification slots, specified media content and custom feeding amounts remain incomplete.",
+    "The original cache lacks AC temperature bounds, rack motion and a feeder action interface; they remain blocked.",
     "Production authentication, dependency audit and release gate remain incomplete."
   ],
   "privacy": "Aggregate report only; private floorplan, states, entities, poses, tokens and full traces stay local."

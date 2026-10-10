@@ -1,17 +1,19 @@
 # Current Status
 
-> Branch sandbox update: 2026-10-09. Main application milestones below remain the 2026-06-22 snapshot; they are not a new release claim.
+> Branch sandbox update: 2026-10-10. Main application milestones below remain the 2026-06-22 snapshot; they are not a new release claim.
 
 ## D1 Sandbox Branch
 
 - Independent HA-backed house sandbox: 12 drawn regions, 45 physical devices, 43 logical assets and 61 scene points in the current local cache.
-- Default decision contract is semantic v3: native D1 fields, grounded catalogue retrieval, constrained action compilation, HCM simulation, memory-only execution and readback. No cloud LLM fallback or real HA writes.
-- The 18-turn user sequence plus warmup, 29 extended scenarios and 5 follow-up sequences pass: 53/53 local-D1 regression groups. Full unit/integration suite: 530 passed, 3 online tests skipped.
+- Default decision contract is semantic v3.1: native D1 fields, grounded catalogue retrieval, bounded device-operation selection, constrained action compilation, HCM simulation, memory-only execution and readback. No cloud LLM fallback or real HA writes.
+- Non-light primitive operations now cover climate, fan, cover, media/IR buttons, rack motion, confirmed one-time feeding and vacuum control where the actual interface exists. Numeric bounds, supported-feature masks, readback and repeatable button effects are checked. Sensors and protected configuration remain read-only/blocked.
+- The 18-turn user sequence plus warmup, 29 extended scenarios and 5 follow-up sequences pass: 53/53 original local-D1 regression groups. Added device suite: 57/57 (45 synthetic-interface and 12 existing-cache scenarios). Full unit/integration suite: 624 passed, 3 online tests skipped. Chrome: 11 original-house and 15 extended-fixture checks passed across desktop/tablet/mobile.
 - Speaker-room provenance, exact quantities, exclusions, read-only queries, pending confirmation, explicit restoration proposals, restart deduplication and isolated replay are covered.
 - Existing Pi/LangGraph comparisons and `demo:d1` remain on their historical decision paths. The original project directory and its local configuration were not modified.
 - HA is currently unreachable; the displayed real reference is the 2026-06-27 cache, not live device truth. The sandbox remains Alpha, not a real-device release.
+- The current cache lacks a feeder action, a rack-motion interface and reliable AC temperature bounds. Those actions stay blocked in that house; complete interfaces are tested separately, not invented in the saved household. The cached speaker supports pause but not stop, so a stop request proposes pause and waits for exact confirmation.
 
-See [house sandbox](HOME_SANDBOX_ALPHA.md) and [semantic v3 contract and limitations](D1_SEMANTIC_CONTRACT_V3.md).
+See [house sandbox](HOME_SANDBOX_ALPHA.md), [semantic v3 contract](D1_SEMANTIC_CONTRACT_V3.md) and [device action boundaries](D1_NON_LIGHT_DEVICES.md).
 
 ## Main Application Snapshot
 

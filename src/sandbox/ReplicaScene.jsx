@@ -106,9 +106,11 @@ export default function ReplicaScene({ snapshot, controls, onPose, onReady, onEr
         const on = deviceIsOn(device);
         if (visual.bulb) { visual.bulb.material.emissive.set(on ? device.type === "light" ? 0xffc56d : 0x219880 : 0x000000); visual.bulb.material.emissiveIntensity = on ? 2 : 0; }
         if (visual.screen) { visual.screen.material.color.set(on ? 0x74b8c4 : 0x182224); visual.screen.material.emissive.set(on ? 0x276770 : 0x000000); }
-        if (visual.fan && on) visual.fan.rotation.y += dt * 10;
-        const position = device.capabilities.find(c => c.domain === "cover")?.state;
+        if (visual.fan && on) visual.fan.rotation.y += dt * (Number.isFinite(device.providerState?.percentage) ? device.providerState.percentage / 100 * 12 : 10);
+        const position = device.providerState?.position ?? device.capabilities.find(c => c.domain === "cover")?.state;
         if (visual.curtains?.length && typeof position === "number") visual.curtains.forEach(({ mesh, initial }, i) => { mesh.position.x = initial + (i ? 1 : -1) * position / 100 * 0.35; });
+        if (visual.rack && typeof position === "number") visual.rack.position.y = 0.75 + position / 100 * 0.75;
+        if (visual.feeder && device.providerState?.feedCount) visual.feeder.material.emissive.set(0x219880);
         visual.marker.material.opacity = device.id === config.focusDeviceId ? 0.9 : 0;
       }
       for (const { room, light } of roomLights) light.intensity = Math.min(16, devices.filter(d => d.roomId === room.id && d.type === "light" && d.online !== false && deviceIsOn(d)).length * 6);
@@ -125,6 +127,7 @@ export default function ReplicaScene({ snapshot, controls, onPose, onReady, onEr
         stats: () => ({ ready: true, frames, drawCalls: renderer.info.render.calls, pose: { ...pose }, room: actorRoom(pose, blueprint), kind: "ha-replica", blueprintId: blueprint.id, roomCount: blueprint.rooms.length, deviceCount: blueprint.devices.length, pathRemaining: goalPath.length, visual: {
           lamps: Object.fromEntries([...model.visualDevices].filter(([id]) => blueprint.lamps.some(l => l.id === id)).map(([id, v]) => [id, v.bulb.material.emissiveIntensity])),
           fanAngles: Object.fromEntries([...model.visualDevices].filter(([, v]) => v.fan).map(([id, v]) => [id, v.fan.rotation.y])),
+          positions: Object.fromEntries(devices.filter(d => Number.isFinite(d.providerState?.position)).map(d => [d.id, d.providerState.position])),
         } }),
         project: (x, z) => { const p = new THREE.Vector3(x, 0, z).project(camera), r = renderer.domElement.getBoundingClientRect(); return { x: r.left + (p.x + 1) * r.width / 2, y: r.top + (1 - p.y) * r.height / 2 }; },
       };

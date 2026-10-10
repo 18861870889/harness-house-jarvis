@@ -65,6 +65,14 @@ describe("existing HA house, not a replacement demo", () => {
     expect(serialized).not.toContain("private-token");
     expect(serialized).not.toContain("http://camera/private");
   });
+  it("preserves verified numeric constraints in a sanitized house copy", () => {
+    const { home, state } = haHouseFixture();
+    const ac = home.things.find(t => t.id === "study_ac").capabilities[0];
+    ac.evidence = { observations: { token: "private-token" }, constraints: { min: 16, max: 30, step: 0.5, token: "private-token" } };
+    const copy = prepareHaHouse(home, {}, state).home.things.find(t => t.id === "study_ac").capabilities[0];
+    expect(copy.evidence).toEqual({ constraints: { min: 16, max: 30, step: 0.5 } });
+    expect(JSON.stringify(copy)).not.toContain("private-token");
+  });
   it("rejects corrupt or uncalibrated layouts instead of silently showing two sample rooms", () => {
     const { home, state } = haHouseFixture();
     expect(() => prepareHaHouse({}, {}, state)).toThrow("invalid_ha_snapshot");

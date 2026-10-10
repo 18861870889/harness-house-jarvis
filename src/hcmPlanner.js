@@ -12,6 +12,7 @@ import { INTENT_TYPES, createIntentResolution, normalizeIntentType } from "./int
 import { findExplicitRoomIds, getHcmControlGraph, resolveControlAsset } from "./hcmControlGraph.js";
 import { normalizeIntentFrame } from "./intentFrame.js";
 import { normalizeSemanticPlannerActions, resolveSemanticGrounding } from "./semanticGroundingResolver.js";
+import { actionIsConfirmed, capabilityAccess } from "./capabilityAuthorization.js";
 
 const CONTROL_REQUEST_PATTERN = /打开|开启|启动|关闭|关一下|关掉|停止|暂停|调到|设置|播放|清扫|没关|忘了关|还开着/;
 const BEDROOM_GENERIC_PATTERN = /卧室|睡房|房间/;
@@ -19,7 +20,7 @@ const BEDROOM_OPTION_PATTERN = /卧室|睡房|主卧|次卧|小孩房|儿童房/
 
 export function compileHcmForPlanner(
   home,
-  { input = "", currentRoomId, selectedRoomId, focusTargetIds = [], focusRoomIds = [], limit = 80 } = {},
+  { input = "", currentRoomId, selectedRoomId, focusTargetIds = [], focusRoomIds = [], limit = 80, includeConfirmable = false } = {},
 ) {
   if (!home?.things) return [];
   if (/卧室|睡房/.test(input)
@@ -39,6 +40,7 @@ export function compileHcmForPlanner(
         thing.type === "switch_panel"
           ? (capability) => capability.binding?.domain === "light" && !mappedEntityIds.has(capability.binding?.entityId)
           : () => true,
+        includeConfirmable,
       ),
     );
   const logicalAssets = compileControlAssets(home);
@@ -159,7 +161,7 @@ function hasRoomPlannerDevices(home, roomId) {
   return (home?.things ?? []).some((thing) => thing.spaceId === roomId && compileThing(thing).capabilities.length > 0);
 }
 
-export function normalizeHcmPlannerDraft(input, draft, home, { strictSelection = false } = {}) {
+export function normalizeHcmPlannerDraft(input, draft, home, { strictSelection = false, confirmedActions = [] } = {}) {
   const intentFrame = normalizeIntentFrame(input, draft);
   const semanticActions = strictSelection
     ? { actions: intentFrame.actions, rejected: [] }
@@ -201,12 +203,13 @@ export function normalizeHcmPlannerDraft(input, draft, home, { strictSelection =
   const controlRequested = (!strictSelection && CONTROL_REQUEST_PATTERN.test(input)) || ["device_control", "scene"].includes(requestedIntentType);
 
   for (const action of actions) {
-    const result = resolvePlannerAction(input, action, home);
+    const confirmed = actionIsConfirmed(action, confirmedActions);
+    const result = resolvePlannerAction(input, action, home, confirmed);
     if (!result.ok) {
       rejected.push(result.message);
       continue;
     }
-    normalizedActions.push(toNormalizedAction(result, action));
+    normalizedActions.push({ ...toNormalizedAction(result, action), ...(confirmed ? { confirmationGranted: true } : {}) });
   }
   if (!strictSelection) normalizedActions = applyLightingComfortPolicy(input, normalizedActions, home, rejected);
   if (!strictSelection && normalizedActions.length === 0 && controlRequested) {
@@ -375,8 +378,8 @@ function attachSemanticDiagnostics(plan, { input, intentFrame, draftActions, nor
   };
 }
 
-function compileThing(thing, includeCapability = () => true) {
-  const plannerCapabilities = (thing.capabilities ?? []).filter(includeCapability).filter(isPlannerCapability).map((capability) => ({
+function compileThing(thing, includeCapability = () => true, includeConfirmable = false) {
+  const plannerCapabilities = (thing.capabilities ?? []).filter(includeCapability).filter(c => isPlannerCapability(c) || includeConfirmable && capabilityAccess(c) === "confirm" && operationForCapability(c)).map((capability) => ({
     id: capability.id,
     name: capability.name,
     kind: capability.kind,
@@ -384,7 +387,7 @@ function compileThing(thing, includeCapability = () => true) {
     operation: operationForCapability(capability),
     state: capability.state,
     domain: capability.binding?.domain,
-    access: capability.kind === CAPABILITY_KINDS.SENSOR ? "read" : "execute",
+    access: capabilityAccess(capability),
   }));
 
   return {
@@ -466,6 +469,7 @@ function operationForCapability(capability) {
   if (domain === "climate") return "temperature_or_on_off";
   if (domain === "cover") return "position_or_open_close";
   if (domain === "button") return "press";
+  if (domain === "vacuum") return "cleaning";
   return null;
 }
 
@@ -476,7 +480,8 @@ function plannerValueType(capability) {
   return capability.valueType || "boolean";
 }
 
-function resolvePlannerAction(input, action, home) {
+function resolvePlannerAction(input, action, home, confirmed = false) {
+  if (action.value?.operation === "feed" && !confirmed) return { ok: false, message: "投喂动作需要对确切设备和单次操作确认" };
   const logical = resolveControlAsset(home, action?.device_id);
   if (logical?.asset) {
     if (action?.capability !== "power") {
@@ -504,21 +509,18 @@ function resolvePlannerAction(input, action, home) {
   if (!thing) return { ok: false, message: `未知设备 ${action?.device_id ?? ""}` };
   const capability = thing.capabilities.find((item) => item.id === action?.capability);
   if (!capability) return { ok: false, message: `${thing.name} 不支持 ${action?.capability ?? ""}` };
-  if (!isPlannerExecutableCapability(capability)) {
+  if (!isPlannerExecutableCapability(capability) && !(confirmed && capabilityAccess(capability) === "confirm")) {
     return { ok: false, message: `${thing.name} ${capability.name} 不是可执行控制能力` };
   }
   return { ok: true, thing, capability };
 }
 
 function isPlannerExecutableCapability(capability) {
-  if (!capability?.policy?.autoExecutable) return false;
-  if (capability.policy.risk !== POLICY_LEVELS.LOW) return false;
-  if (capability.policy.confirmation !== "never") return false;
-  if (![CAPABILITY_KINDS.CONTROL, CAPABILITY_KINDS.ACTION].includes(capability.kind)) return false;
-  return Boolean(operationForCapability(capability));
+  return capabilityAccess(capability) === "execute" && Boolean(operationForCapability(capability));
 }
 
 function normalizePlannerValue(value, capability) {
+  if (value && typeof value === "object") return value;
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (trimmed === "true") return true;
@@ -663,7 +665,7 @@ function numberedStem(name) {
 function dedupeActions(actions) {
   const seen = new Set();
   return actions.filter((action) => {
-    const key = `${action.thingId}:${action.capabilityId}:${action.value}`;
+    const key = `${action.thingId}:${action.capabilityId}:${JSON.stringify(action.value)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

@@ -148,7 +148,7 @@ export function extractPlannerDraftActions(draft = {}) {
     .map(normalizeDraftAction)
     .filter(Boolean)
     .filter((action) => {
-      const key = `${action.device_id ?? action.target ?? ""}:${action.capability ?? ""}:${String(action.value)}`;
+      const key = `${action.device_id ?? action.target ?? ""}:${action.capability ?? ""}:${JSON.stringify(action.value)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

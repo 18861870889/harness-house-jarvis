@@ -6,14 +6,21 @@ import { resolve } from "node:path";
 import { chromium } from "playwright-core";
 import { actorRoom, findWalkingPath, followWalkingPath } from "../src/sandbox/houseBlueprint.js";
 import { createWalker } from "../src/sandbox/walker.js";
+import { D1_SEMANTIC_CONTRACT_VERSION } from "../src/d1SemanticDecision.js";
 
 const directory = resolve("build/house-sandbox"); mkdirSync(directory, { recursive: true });
-const temporary = createServer();
-await new Promise(done => temporary.listen(0, "127.0.0.1", done));
-const port = temporary.address().port; await new Promise(done => temporary.close(done));
+let port;
+for (let attempt = 0; attempt < 10 && port === undefined; attempt++) {
+  const temporary = createServer();
+  await new Promise(done => temporary.listen(0, "127.0.0.1", done));
+  const candidate = temporary.address().port; await new Promise(done => temporary.close(done));
+  if (candidate <= 65435) port = candidate;
+}
+if (!port) throw new Error("test_port_unavailable");
 const base = `http://127.0.0.1:${port}`;
 const captured = Boolean(process.env.HARNESS_SANDBOX_SOURCE_DIRECTORY);
-const server = spawn(process.execPath, ["scripts/start-house-sandbox.mjs"], { cwd: process.cwd(), env: { ...process.env, SANDBOX_PORT: String(port), SANDBOX_FIXTURE: captured ? "0" : "1", SANDBOX_SAMPLE: "0" }, stdio: ["ignore", "pipe", "pipe"] });
+const devicesFixture = !captured && process.env.SANDBOX_DEVICE_FIXTURE === "1";
+const server = spawn(process.execPath, ["scripts/start-house-sandbox.mjs"], { cwd: process.cwd(), env: { ...process.env, SANDBOX_PORT: String(port), SANDBOX_FIXTURE: captured ? "0" : devicesFixture ? "devices" : "1", SANDBOX_SAMPLE: "0" }, stdio: ["ignore", "pipe", "pipe"] });
 let log = ""; server.stdout.on("data", chunk => { log += chunk; }); server.stderr.on("data", chunk => { log += chunk; });
 const report = { createdAt: new Date().toISOString(), suite: "ha-backed-house-sandbox", source: captured ? "existing-local-house-cache" : "synthetic-ha-fixture", model: "native-local-d1", realDeviceWrites: 0, cases: [] };
 let browser;
@@ -97,11 +104,11 @@ try {
     const endpoint = result.snapshot.home.controlGraph.endpoints.find(e => e.id === asset.primaryEndpointId);
     const cap = result.snapshot.home.things.find(t => t.id === endpoint.providerThingId).capabilities.find(c => c.id === endpoint.capabilityId); assert.equal(cap.state, true);
     await page.waitForFunction(id => window.__sandboxScene.stats().visual.lamps[id] === 2, asset.id);
-    assert(result.result.simulated); assert.equal(result.result.d1.contractVersion, "3.0");
+    assert(result.result.simulated); assert.equal(result.result.d1.contractVersion, D1_SEMANTIC_CONTRACT_VERSION);
     await page.getByText("本轮决策记录", { exact: true }).click();
     const decision = await page.locator(".decision-details").innerText();
-    assert(decision.includes("v3.0") && decision.includes("设备名称") && decision.includes("书房射灯"));
-    return { status: result.result.status, latencyMs: result.result.d1?.latencyMs, actions: result.result.actions.length, logicalReadback: true, semanticContract: "3.0" };
+    assert(decision.includes(`v${D1_SEMANTIC_CONTRACT_VERSION}`) && decision.includes("设备名称") && decision.includes("书房射灯"));
+    return { status: result.result.status, latencyMs: result.result.d1?.latencyMs, actions: result.result.actions.length, logicalReadback: true, semanticContract: D1_SEMANTIC_CONTRACT_VERSION };
   });
   await check("sensor query has no device effects", async () => {
     const before = (await get("state")).snapshot;
@@ -120,6 +127,39 @@ try {
     assert.deepEqual((await get("state")).snapshot.home, before.home); assert.equal((await get("state")).snapshot.effects, before.effects);
     return { events: recording.events.length, bytes: JSON.stringify(recording).length, replayMatches: true };
   });
+  if (devicesFixture) {
+    await check("native AC temperature and visual power readback", async () => {
+      const result = await command("把书房空调调到24度"); assert.equal(result.result.status, "executed", JSON.stringify(result.result));
+      assert.equal(result.result.results[0].serviceData.temperature, 24);
+      assert(result.result.results[0].verification.ok);
+      await page.getByRole("button", { name: /书房空调/ }).click();
+      assert((await page.locator(".device-details").innerText()).includes("24°C"));
+      assert((await page.locator(".operation-details").innerText()).includes("设置空调目标温度"));
+      return { temperature: 24, numericReadback: true };
+    });
+    await check("native curtain position reaches its 3D meshes", async () => {
+      const result = await command("客厅窗帘开到70%"); assert.equal(result.result.status, "executed", JSON.stringify(result.result));
+      assert.equal(result.result.results[0].serviceData.position, 70);
+      await page.waitForFunction(() => window.__sandboxScene.stats().visual.positions.living_curtain === 70);
+      return { position: 70 };
+    });
+    await check("native media pause does not power off and IR buttons remain repeatable", async () => {
+      const pause = await command("暂停客厅音箱播放音乐"); assert.equal(pause.result.status, "executed", JSON.stringify(pause.result));
+      assert.equal(pause.result.results[0].service, "media_player.media_pause");
+      const first = await command("客厅电视音量大一点"), second = await command("客厅电视音量大一点");
+      assert.equal(first.result.status, "executed", JSON.stringify(first.result)); assert.equal(second.result.status, "executed", JSON.stringify(second.result));
+      assert.equal(second.snapshot.home.things.find(t => t.id === "living_tv").simulationState.buttonPresses, 2);
+      return { mediaState: "paused", irPresses: 2 };
+    });
+    await check("native feeder confirmation and rack movement use dedicated interfaces", async () => {
+      const rack = await command("升起客厅晾衣杆"); assert.equal(rack.result.status, "executed", JSON.stringify(rack.result));
+      await page.waitForFunction(() => window.__sandboxScene.stats().visual.positions.rack === 100);
+      const feed = await command("客厅猫粮机投喂一次"); assert.equal(feed.result.status, "needs_clarification", JSON.stringify(feed.result));
+      const confirmed = await command("可以"); assert.equal(confirmed.result.status, "executed", JSON.stringify(confirmed.result));
+      assert.equal(confirmed.snapshot.home.things.find(t => t.id === "feeder").simulationState.feedCount, 1);
+      return { rackPosition: 100, feedCount: 1, confirmed: true };
+    });
+  }
   await check("room list and controller details retain semantic relationships", async () => {
     await page.getByRole("button", { name: /书房射灯/ }).click();
     assert((await page.locator(".device-details").innerText()).includes("控制器"));
@@ -154,5 +194,5 @@ finally {
     server.once("exit", () => { clearTimeout(timeout); done(); });
     server.kill("SIGTERM");
   });
-  writeFileSync(resolve(directory, captured ? "ha-captured-qa.json" : "ha-fixture-qa.json"), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(resolve(directory, captured ? "ha-captured-qa.json" : devicesFixture ? "ha-devices-qa.json" : "ha-fixture-qa.json"), `${JSON.stringify(report, null, 2)}\n`);
 }

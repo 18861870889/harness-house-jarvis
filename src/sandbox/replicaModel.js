@@ -57,7 +57,7 @@ export function buildReplicaModel(blueprint, kit, texture) {
   for (const device of blueprint.devices.filter(d => d.position)) {
     const node = new THREE.Group(); node.name = `device_${device.id}`; node.userData.deviceId = device.id;
     node.position.set(...device.position);
-    let bulb, fan, screen, curtains;
+    let bulb, fan, screen, curtains, rack, feeder;
     if (device.type === "light") {
       const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 20), plaster);
       bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.035, 20), new THREE.MeshStandardMaterial({ color: 0xe6ece3, emissive: 0x000000, roughness: 0.4 }));
@@ -74,6 +74,25 @@ export function buildReplicaModel(blueprint, kit, texture) {
       const shell = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.24, 0.16), plaster);
       const vent = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.025, 0.018), new THREE.MeshStandardMaterial({ color: 0x5e7370 }));
       vent.position.set(0, -0.07, 0.09); node.add(shell, vent); node.position.y = 1.55;
+      bulb = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 8), new THREE.MeshStandardMaterial({ color: 0x87a9a0, emissive: 0x000000 }));
+      bulb.position.set(0.34, -0.02, 0.1); node.add(bulb);
+    } else if (device.type === "drying_rack") {
+      node.position.y = 0;
+      rack = new THREE.Group(); rack.position.y = 1.1;
+      for (const z of [-0.13, 0.13]) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.04, 0.04), plaster); bar.position.z = z; rack.add(bar);
+      }
+      node.add(rack);
+    } else if (device.type === "pet_feeder") {
+      node.position.y = 0.18;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.34, 20), plaster);
+      feeder = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.035, 20), new THREE.MeshStandardMaterial({ color: 0x879891, emissive: 0x000000 }));
+      feeder.position.set(0, -0.16, 0.19); node.add(body, feeder);
+    } else if (device.type === "robot_vacuum") {
+      node.position.y = 0.07;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.1, 24), plaster);
+      bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.02, 16), new THREE.MeshStandardMaterial({ color: 0x879891, emissive: 0x000000 }));
+      bulb.position.y = 0.06; node.add(body, bulb);
     } else {
       const sensor = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.1), plaster);
       bulb = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshStandardMaterial({ color: 0x879891, emissive: 0x000000 }));
@@ -84,7 +103,7 @@ export function buildReplicaModel(blueprint, kit, texture) {
     node.traverse(mesh => { mesh.userData.deviceId = device.id; if (mesh.isMesh) mesh.castShadow = true; });
     marker.castShadow = false;
     root.add(node);
-    visualDevices.set(device.id, { node, bulb, fan, screen, curtains, marker });
+    visualDevices.set(device.id, { node, bulb, fan, screen, curtains, rack, feeder, marker });
   }
   const avatar = kit.getObjectByName("avatar")?.clone(true);
   if (!avatar) throw new Error("missing_avatar_asset");
